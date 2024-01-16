@@ -146,19 +146,6 @@ def main():
         # Get the total spent and remaining budget from summarize_expenses
         total_spent, remaining_budget = summarize_expenses(expense_file_path, budget, budget_tracker, analysis_year, analysis_month)
 
-    # if args.category and args.year and args.month:
-    #     print_expenses_by_category(expense_file_path, args.category, args.year, args.month)
-    # else:
-    #     # Get categories from the budget_tracker
-    #     expense_categories = get_categories(budget_file_path)
-
-    #     # Ask user for the year and month
-    #     analysis_year = int(input("Enter the year for expense analysis (e.g., 2024): "))
-    #     analysis_month = int(input("Enter the month for expense analysis (1-12): "))
-
-    #     # Read file and summarize expenses for the specified month and year
-    #     summarize_expenses(expense_file_path, budget, budget_tracker, analysis_year, analysis_month)
-
     # Prepare the analysis data
     analysis_data = {
         'Total Budget': budget,
