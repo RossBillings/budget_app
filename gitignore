@@ -1,0 +1,7 @@
+ # Ignore specific CSV files
+cleaned_expenses.csv
+Nov-Dec2023_transactions.csv
+
+# You can add more patterns, file names, or directories here that you want Git to ignore.
+.env
+venv
