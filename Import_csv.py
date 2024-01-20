@@ -52,7 +52,7 @@ def categorize_transaction(description):
 # Get the directory where the script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 # Construct the paths to the CSV files relative to the script location
-input_csv = os.path.join(script_dir, "Expense_Inputs", "Nov-Dec2023_transactionsCAP1.csv")
+input_csv = os.path.join(script_dir, "Expense_Inputs", "INPUT.csv")
 output_csv = os.path.join(script_dir, "Expense_Inputs", "cleaned_expenses.csv")
 
 convert_csv(input_csv, output_csv)

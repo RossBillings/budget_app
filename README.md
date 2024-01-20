@@ -58,3 +58,8 @@ A bar chart showing the comparison between budgeted and actual expenses (display
 Notes
 Modify budgets.csv to reflect your personal budget categories and amounts.
 The script assumes a specific structure for the input CSV file. Ensure the format matches the expected structure.
+
+
+works now. 
+
+Write me a new py file that takes the budget_history.csv and saves graphs/visials for the data showing by each month

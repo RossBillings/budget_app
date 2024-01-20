@@ -73,29 +73,31 @@ def summarize_expenses(expense_file_path, budget, budget_tracker, year, month):
     remaining_budget = budget - total_spent
 
         # Visualization using a bar chart
+    fig, ax = plt.subplots()
     categories = list(category_budgets.keys())
     budgeted = [category_budgets.get(cat, 0) for cat in categories]
     spent = [amount_by_category.get(cat, 0) for cat in categories]
 
-    fig, ax = plt.subplots()
     ax.bar(categories, budgeted, label='Budgeted', alpha=0.6)
     ax.bar(categories, spent, label='Spent', alpha=0.6)
-
     ax.set_ylabel('Amount ($)')
     ax.set_title('Budget vs Spent by Category')
     ax.legend()
-
     plt.xticks(rotation=45)
     plt.tight_layout()
     # plt.show()
 
-    return total_spent, remaining_budget
-
-# ----> Save the plot to a file
+    # Save the plot to a file
     script_dir2 = os.path.dirname(os.path.abspath(__file__))
-    plot_file_path = os.path.join(script_dir2, "Output", "budget_analysis_plot.png")
-    # Use this path in plt.savefig()
+    filename = f"budget_analysis_plot_{year}_{month}.png"
+    plot_file_path = os.path.join(script_dir2, "Output", filename)
+    # plot_file_path = os.path.join(script_dir2, "Output", "budget_analysis_plot.png")
     plt.savefig(plot_file_path)
+ 
+    return total_spent, remaining_budget, amount_by_category
+
+
+    
 
 # Preparation for CLI
 def print_expenses_by_category(expense_file_path, category, year, month):
@@ -130,7 +132,8 @@ def main():
     # Construct the paths to the CSV files
     expense_file_path = os.path.join(script_dir, "Expense_Inputs", "cleaned_expenses.csv")
     budget_file_path = os.path.join(script_dir, "budgets.csv")
-    output_csv_name = os.path.join(script_dir, "budget_history.csv")  # file name within the relative path
+    output_csv_name = os.path.join(script_dir, "Output", "budget_history.csv")  # file name within the relative path
+
 
     budget_tracker = BudgetADV()
     budget_tracker.load_budgets_from_csv(budget_file_path)
@@ -144,7 +147,11 @@ def main():
         analysis_month = args.month if args.month else int(input("Enter the month for expense analysis (1-12): "))
 
         # Get the total spent and remaining budget from summarize_expenses
-        total_spent, remaining_budget = summarize_expenses(expense_file_path, budget, budget_tracker, analysis_year, analysis_month)
+        # total_spent, remaining_budget = summarize_expenses(expense_file_path, budget, budget_tracker, analysis_year, analysis_month)
+        total_spent, remaining_budget, amount_by_category = summarize_expenses(
+            expense_file_path, budget, budget_tracker, analysis_year, analysis_month)
+
+
 
     # Prepare the analysis data
     analysis_data = {
@@ -155,7 +162,14 @@ def main():
     }
 
     # Write the analysis data to CSV
-    write_budget_analysis_to_csv(output_csv_name, analysis_year, analysis_month, analysis_data)
+    category_budgets = budget_tracker.category_budgets
+    # amount_by_category = ... # gather your amounts by category data
+
+    # write_budget_analysis_to_csv(output_csv_name, analysis_year, analysis_month, category_budgets, amount_by_category)
+    write_budget_analysis_to_csv(output_csv_name, analysis_year, analysis_month, category_budgets, amount_by_category)
+
+
+    # write_budget_analysis_to_csv(output_csv_name, analysis_year, analysis_month, analysis_data)
 
 if __name__ == "__main__":
     main()
