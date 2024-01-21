@@ -131,7 +131,7 @@ def main():
 
     # Construct the paths to the CSV files
     expense_file_path = os.path.join(script_dir, "Expense_Inputs", "cleaned_expenses.csv")
-    budget_file_path = os.path.join(script_dir, "budgets.csv")
+    budget_file_path = os.path.join(script_dir,"Expense_Inputs", "budgets.csv")
     output_csv_name = os.path.join(script_dir, "Output", "budget_history.csv")  # file name within the relative path
 
 
