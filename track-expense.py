@@ -26,31 +26,31 @@ def summarize_expenses(expense_file_path, budget, budget_tracker, year, month):
     with open(expense_file_path, "r") as f:
         reader = csv.DictReader(f)  # Use DictReader to automatically handle the header
         for row in reader:
-            transaction_date = row['Transaction Date'].strip()
-            expense_date = datetime.strptime(transaction_date, '%Y-%m-%d')
+            transaction_date = row['Transaction Date'].strip()  # Strip whitespace once here
+            try:
+                # Attempt to parse the date and skip any rows where the date is not in the correct format
+                expense_date = datetime.strptime(transaction_date, '%Y-%m-%d')
+                
+                # Check if the expense is in the specified month and year
+                if expense_date.year == year and expense_date.month == month:
+                    expense_name = row['Description'].strip()
+                    expense_amount = float(row['Amount'].strip())
+                    expense_category = row['Category'].strip()
 
+                    # Create and append the expense object
+                    line_expense = Expense(
+                        name=expense_name, 
+                        amount=expense_amount, 
+                        category=expense_category,
+                        transaction_date=transaction_date
+                    )
+                    expenses.append(line_expense)
 
-            # Check if the expense is in the specified month and year
-            if expense_date.year == year and expense_date.month == month:
-                expense_name = row['Description'].strip()
-                expense_amount = float(row['Amount'].strip())
-                expense_category = row['Category'].strip()
+            except ValueError:
+                # Log an error or pass if a row with an invalid date format is encountered
+                print(f"Skipping row with invalid date format: {row}")
+                continue  # This ensures the rest of the loop is skipped for this iteration
 
-                line_expense = Expense(
-                    name=expense_name, 
-                    amount=expense_amount, 
-                    category=expense_category,
-                    transaction_date=transaction_date
-                )
-                expenses.append(line_expense)
-            else:
-                print(f"Skipping line: {row}")
-
-            
-            # Strip any leading/trailing whitespace from the transaction date
-            transaction_date = transaction_date.strip()
-
-            expense_date = datetime.strptime(transaction_date, '%Y-%m-%d')
             
 
     amount_by_category = {}
@@ -105,8 +105,17 @@ def print_expenses_by_category(expense_file_path, category, year, month):
     with open(expense_file_path, "r") as f:
         reader = csv.DictReader(f)
         for row in reader:
+            # Skip any rows that don't have a valid date in 'Transaction Date'
+            if row['Transaction Date'].lower() == 'transaction date':
+                continue
+
             transaction_date = row['Transaction Date'].strip()
-            expense_date = datetime.strptime(transaction_date, '%Y-%m-%d')
+            try:
+                expense_date = datetime.strptime(transaction_date, '%Y-%m-%d')
+            except ValueError as e:
+                print(f"Error parsing date from row: {row}")
+                print(f"Error: {e}")
+                continue
 
             # Check if the expense is in the specified month, year, and category
             if expense_date.year == year and expense_date.month == month and row['Category'].strip().lower() == category.lower():

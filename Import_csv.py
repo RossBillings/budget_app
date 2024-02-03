@@ -29,8 +29,8 @@ def convert_csv(input_file, output_file):
 
 #  ENTER CATGORIES AND KEYWORDS
 def categorize_transaction(description):
-    groceries_keywords = ["wegmans", "weis", "santoni's", "wine post"]
-    dining_keywords = ["qdoba", "panera", "chick-fil-a", "starbucks"]
+    groceries_keywords = ["wegmans", "weis", "santoni's", "wine post", "LIDL"]
+    dining_keywords = ["qdoba", "panera", "chick-fil-a", "starbucks", "5GUYS", "SONNY", "HOFFMANS","POPEYES" ]
     target_keywords = ["target"]
     home_supplies_keywords = ["home depot", "lowes"]
 

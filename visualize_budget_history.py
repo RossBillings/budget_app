@@ -1,14 +1,20 @@
 import csv
 import os
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 def read_budget_history(file_path):
     data = []
     with open(file_path, 'r') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            data.append(row)
-    return data
+            year_month = (int(row['Year']), int(row['Month']))  # Create a sortable tuple
+            data.append((year_month, row))
+    # Sort data by year and month
+    data.sort(key=lambda x: x[0])
+    # sorted_months = sorted(monthly_data.keys(), key=lambda x: datetime.strptime(x, "%
+
+    return [row for _, row in data]
 
 def read_budget_data(file_path):
     budget_data = []
@@ -19,25 +25,27 @@ def read_budget_data(file_path):
     return budget_data
 
 def create_visualizations(data, budget_data, output_dir):
+    # Process budget data to get budgeted amounts for each category
     budgeted_amounts = {row['Category']: float(row['Amount']) for row in budget_data}
 
-    
-    # Organize data by category and month
+    # Organize spending data by category and month
     category_data = {}
     for row in data:
         category = row['Category']
-        year_month = f"{row['Year']}-{row['Month']}"
+        # Create a sortable key with zero-padded month and year
+        year_month_key = f"{row['Year']}-{int(row['Month']):02d}"
         if category not in category_data:
             category_data[category] = {}
-        category_data[category][year_month] = float(row['Spent'])
+        category_data[category][year_month_key] = float(row['Spent'])
 
-    # Create a plot for each category
+    # Create a bar chart for each category
     for category, monthly_data in category_data.items():
-        months = list(sorted(monthly_data.keys()))
-        spent_amounts = [monthly_data[month] for month in months]
+        # Sort months for plotting
+        sorted_months = sorted(monthly_data.keys(), key=lambda x: datetime.strptime(x, "%Y-%m"))
+        spent_amounts = [monthly_data[month] for month in sorted_months]
 
         fig, ax = plt.subplots()
-        ax.bar(months, spent_amounts, label='Spent')
+        ax.bar(sorted_months, spent_amounts, label='Spent')
 
         # Add a horizontal line for the budgeted amount
         if category in budgeted_amounts:
@@ -53,6 +61,7 @@ def create_visualizations(data, budget_data, output_dir):
         plot_file_path = os.path.join(output_dir, f"spending_{category}.png")
         plt.savefig(plot_file_path)
         plt.close()
+
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
