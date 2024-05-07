@@ -33,6 +33,7 @@ def categorize_transaction(description):
     dining_keywords = ["qdoba", "panera", "chick-fil-a", "starbucks", "5GUYS", "SONNY", "HOFFMANS","POPEYES" ]
     target_keywords = ["target"]
     home_supplies_keywords = ["home depot", "lowes"]
+    beauty_supplies = ["BEAUTYCOUNTER"]
 
     description_lower = description.lower()  # Convert description to lowercase
     if any(keyword in description_lower for keyword in groceries_keywords):
@@ -43,6 +44,8 @@ def categorize_transaction(description):
         return "Target"
     elif any(keyword in description_lower for keyword in home_supplies_keywords):
         return "Home_Supplies"
+    elif any(keyword in description_lower for keyword in beauty_supplies):
+        return "Beauty"
     else:
         return "Misc"
 
