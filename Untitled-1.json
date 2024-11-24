@@ -1,0 +1,101 @@
+{
+  "Tool": {
+    "Name": "Simulink",
+    "Type": "Simulation and Model-Based Design",
+    "Vendor": "MathWorks",
+    "Version": "2023a",
+    "POC": {
+      "Name": "Alice Johnson",
+      "Email": "alice.johnson@example.com"
+    }
+  },
+  "Licensing": {
+    "Type": "Floating",
+    "Server": {
+      "Vendor": "MathWorks License Manager",
+      "Hostname": "simulink-license.abccompany.com",
+      "IP": "192.168.11.30",
+      "Port": "27000",
+      "Protocol": "TCP/IP"
+    }
+  },
+  "Access_Control": {
+    "IAM": "Active Directory"
+  },
+  "Deployment": {
+    "Level": "Department",
+    "Type": "On-Premises",
+    "InfoSec_Level": ["CUI", "NOFORN"]
+  },
+  "Plugins": [
+    {
+      "Name": "Simulink",
+      "Version": "2023a"
+    },
+    {
+      "Name": "Aerospace Blockset",
+      "Version": "5.0"
+    },
+    {
+      "Name": "Antenna Toolbox",
+      "Version": "5.0"
+    },
+    {
+      "Name": "Control System Toolbox",
+      "Version": "10.9"
+    },
+    {
+      "Name": "DSP System Toolbox",
+      "Version": "9.13"
+    },
+    {
+      "Name": "Real-Time Workshop Embedded Coder",
+      "Version": "5.0"
+    },
+    {
+      "Name": "Signal Processing Toolbox",
+      "Version": "9.1"
+    },
+    {
+      "Name": "Simulink Coder",
+      "Version": "9.3"
+    },
+    {
+      "Name": "Simulink Desktop Real-Time",
+      "Version": "6.0"
+    },
+    {
+      "Name": "Simulink Real-Time",
+      "Version": "6.10"
+    },
+    {
+      "Name": "Speedgoat I/O Blockset",
+      "Version": "4.0",
+      "Note": "This blockset will disable as it requires attached hardware"
+    },
+    {
+      "Name": "Stateflow",
+      "Version": "10.5"
+    },
+    {
+      "Name": "Aerospace Toolbox",
+      "Version": "4.2"
+    },
+    {
+      "Name": "Data Acquisition Toolbox",
+      "Version": "4.7"
+    },
+    {
+      "Name": "Fuzzy Logic Toolbox",
+      "Version": "3.6"
+    },
+    {
+      "Name": "SimMechanics",
+      "Version": "4.9"
+    },
+    {
+      "Name": "Simscape",
+      "Version": "6.0"
+    }
+  ]
+}
