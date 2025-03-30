@@ -1,5 +1,6 @@
 import os
 import csv
+import re  # Import the regular expressions module
 
 def convert_csv(input_files, output_file):
     combined_rows = []
@@ -17,7 +18,13 @@ def convert_csv(input_files, output_file):
                     description = row['Description']
                 else:
                     # Process INPUT_USAA.csv format
-                    amount = row['Amount']
+                    try:
+                        amount_val = float(row['Amount'])
+                        # Invert the sign for USAA input
+                        amount_val = -amount_val
+                        amount = str(amount_val)
+                    except ValueError:
+                        amount = row['Amount']
                     transaction_date = row['Date']
                     description = row['Description']
 
@@ -50,24 +57,63 @@ def should_exclude(description):
     return any(keyword.lower() in description_lower for keyword in exclude_keywords)
 
 # ENTER CATEGORIES AND KEYWORDS
-def categorize_transaction(description):
-    groceries_keywords = ["wegmans", "weis", "santoni's", "wine post", "LIDL"]
-    dining_keywords = ["qdoba", "panera", "chick-fil-a", "starbucks", "5GUYS", "SONNY", "HOFFMANS", "POPEYES"]
-    target_keywords = ["target"]
-    home_supplies_keywords = ["home depot", "lowes"]
-    beauty_supplies = ["BEAUTYCOUNTER"]
+def categorize_transaction(description, current_category=None):
+    
+     # If the current category exists and starts with '+', do not overwrite it
+    if current_category and current_category.startswith('+'):
+        return current_category  # Return the current category without changes
+    
+    # Convert description to lowercase and remove punctuation
+    description_clean = re.sub(r'[^\w\s]', '', description.lower())
 
-    description_lower = description.lower()  # Convert description to lowercase
-    if any(keyword in description_lower for keyword in groceries_keywords):
+    # Define your keywords, all in lowercase
+    groceries_keywords = ["wegmans", "weis", "santonis", "wine post", "lidl"]
+    dining_keywords = ["iron rooster", "tst*iron rooster", "qdoba", "panera", "chickfila", "starbucks", "5guys", "sonny", "hoffmans", "popeyes", "taco", "cracker", "el gran pollo", "alfeos", "chipotle", "bubakoos", "papa johns", "papa", "pizza", "dunkin", "dunkin donuts"]
+    target_keywords = ["target", "hobby lobby", "target.com", "walmart", "hobbylobby"]  
+    home_supplies_keywords = ["home depot", "lowes", "lawns", "homedepot"]
+    beauty_supplies = ["beautycounter"]
+    subscription = ["applecom", "apple", "amazonprime", "netflix", "disney", "hulu", "spotify", "youtube", "youtube premium", "youtube.com"]
+    gas = ["royalfarms", "exxon", "wawa", "royal farms"]
+    insurance = ["lpl", "healthy paws", "ohio national"]
+    bilbrowhomes = ["bilbrowhomes", "bilbrow homes", "bobrow", "chase", "chase", "chase.com", "chase bank", "mr. cooper", "cooper", "mr cooper"]
+    income = ["istari", "istari federal", "istari federal pay akpf"]
+    tithe = ["horizon", "tithe.ly", "compassion international","tithe"]
+    transfer = ["usaa transfer", "capital one payment", "capital one"]
+    required = ["roundpoint", "mortgage"]
+    utilities = ["baltimore gas"]
+    automotive = ["toyota"]
+
+    # Now check if any keyword is in the cleaned description
+    if any(keyword in description_clean for keyword in groceries_keywords):
         return "Groceries"
-    elif any(keyword in description_lower for keyword in dining_keywords):
+    elif any(keyword in description_clean for keyword in dining_keywords):
         return "Dining"
-    elif any(keyword in description_lower for keyword in target_keywords):
+    elif any(keyword in description_clean for keyword in target_keywords):
         return "Target"
-    elif any(keyword in description_lower for keyword in home_supplies_keywords):
+    elif any(keyword in description_clean for keyword in home_supplies_keywords):
         return "Home_Supplies"
-    elif any(keyword in description_lower for keyword in beauty_supplies):
+    elif any(keyword in description_clean for keyword in beauty_supplies):
         return "Beauty"
+    elif any(keyword in description_clean for keyword in subscription):
+        return "Subscription"
+    elif any(keyword in description_clean for keyword in gas):
+        return "Gas"
+    elif any(keyword in description_clean for keyword in insurance):
+        return "Insurance"
+    elif any(keyword in description_clean for keyword in bilbrowhomes):
+        return "bilbrowhomes"
+    elif any(keyword in description_clean for keyword in income):
+        return "Income"
+    elif any(keyword in description_clean for keyword in tithe):
+        return "Tithe"
+    elif any(keyword in description_clean for keyword in transfer):
+        return "Transfer"
+    elif any(keyword in description_clean for keyword in required):
+        return "Required"
+    elif any(keyword in description_clean for keyword in utilities):
+        return "Utilities"
+    elif any(keyword in description_clean for keyword in automotive):
+        return "Automotive"
     else:
         return "Misc"
 
@@ -77,12 +123,12 @@ def main():
 
     # List of input CSV files
     input_csvs = [
-        os.path.join(script_dir, "Expense_Inputs", "INPUT.csv"),
-        os.path.join(script_dir, "Expense_Inputs", "INPUT_USAA.csv")
+        os.path.join(script_dir, "Expense_Inputs", "CapOne_03-2025.csv"),
+        os.path.join(script_dir, "Expense_Inputs", "USAA_03-2025.csv")
     ]
 
     # Output CSV file
-    output_csv = os.path.join(script_dir, "Expense_Inputs", "cleaned_expenses2024.csv")
+    output_csv = os.path.join(script_dir, "Expense_Inputs", "cleaned_expenses2025.csv")
 
     # Run the conversion
     convert_csv(input_csvs, output_csv)
