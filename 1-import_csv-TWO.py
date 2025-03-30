@@ -57,31 +57,38 @@ def should_exclude(description):
     return any(keyword.lower() in description_lower for keyword in exclude_keywords)
 
 # ENTER CATEGORIES AND KEYWORDS
+# def categorize_transaction(description, current_category=None):
+    
+#      # If the current category exists and starts with '+', do not overwrite it
+#     if current_category and current_category.startswith('+'):
+#         return current_category  # Return the current category without changes
+
 def categorize_transaction(description, current_category=None):
     
-     # If the current category exists and starts with '+', do not overwrite it
-    if current_category and current_category.startswith('+'):
-        return current_category  # Return the current category without changes
-    
+    # If the description starts with '+', keep the current category unchanged.
+    if description and description.startswith('+'):
+        return current_category    
     # Convert description to lowercase and remove punctuation
     description_clean = re.sub(r'[^\w\s]', '', description.lower())
 
     # Define your keywords, all in lowercase
     groceries_keywords = ["wegmans", "weis", "santonis", "wine post", "lidl"]
-    dining_keywords = ["iron rooster", "tst*iron rooster", "qdoba", "panera", "chickfila", "starbucks", "5guys", "sonny", "hoffmans", "popeyes", "taco", "cracker", "el gran pollo", "alfeos", "chipotle", "bubakoos", "papa johns", "papa", "pizza", "dunkin", "dunkin donuts"]
+    dining_keywords = ["iron rooster", "tst*iron rooster", "qdoba", "panera", "chickfila", "starbucks", "5guys", "sonny", "hoffmans", "popeyes", "taco", "cracker", "el gran pollo", "alfeos", "chipotle", "bubbakoos", "papa johns", "papa", "pizza", "dunkin", "dunkin donuts"]
     target_keywords = ["target", "hobby lobby", "target.com", "walmart", "hobbylobby"]  
     home_supplies_keywords = ["home depot", "lowes", "lawns", "homedepot"]
     beauty_supplies = ["beautycounter"]
-    subscription = ["applecom", "apple", "amazonprime", "netflix", "disney", "hulu", "spotify", "youtube", "youtube premium", "youtube.com"]
+    subscription = ["applecom", "amazonprime", "netflix", "disney", "hulu", "spotify", "youtube", "youtube premium", "youtube.com"]
     gas = ["royalfarms", "exxon", "wawa", "royal farms"]
     insurance = ["lpl", "healthy paws", "ohio national"]
     bilbrowhomes = ["bilbrowhomes", "bilbrow homes", "bobrow", "chase", "chase", "chase.com", "chase bank", "mr. cooper", "cooper", "mr cooper"]
     income = ["istari", "istari federal", "istari federal pay akpf"]
     tithe = ["horizon", "tithe.ly", "compassion international","tithe"]
-    transfer = ["usaa transfer", "capital one payment", "capital one"]
+    transfer = ["usaa transfer", "capital one payment", "capital one", "apple savings transfer"]
     required = ["roundpoint", "mortgage"]
     utilities = ["baltimore gas"]
     automotive = ["toyota"]
+    # savings = []
+    health = ["equip", "valence nutra", "doctors supplement store", "sp bodybio inc", "revive"]
 
     # Now check if any keyword is in the cleaned description
     if any(keyword in description_clean for keyword in groceries_keywords):
@@ -114,6 +121,8 @@ def categorize_transaction(description, current_category=None):
         return "Utilities"
     elif any(keyword in description_clean for keyword in automotive):
         return "Automotive"
+    elif any(keyword in description_clean for keyword in health):
+        return "Health"
     else:
         return "Misc"
 
