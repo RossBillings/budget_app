@@ -72,16 +72,16 @@ def categorize_transaction(description, current_category=None):
     description_clean = re.sub(r'[^\w\s]', '', description.lower())
 
     # Define your keywords, all in lowercase
-    groceries_keywords = ["wegmans", "weis", "santonis", "wine post", "lidl"]
+    groceries_keywords = ["wegmans", "weis", "santonis", "wine post", "lidl", "aldi"]
     dining_keywords = ["iron rooster", "tst*iron rooster", "qdoba", "panera", "chickfila", "starbucks", "5guys", "sonny", "hoffmans", "popeyes", "taco", "cracker", "el gran pollo", "alfeos", "chipotle", "bubbakoos", "papa johns", "papa", "pizza", "dunkin", "dunkin donuts"]
-    target_keywords = ["target", "hobby lobby", "target.com", "walmart", "hobbylobby"]  
+    target_keywords = ["target", "hobby lobby", "target.com", "walmart", "hobbylobby", "amazon"]  
     home_supplies_keywords = ["home depot", "lowes", "lawns", "homedepot"]
-    beauty_supplies = ["beautycounter"]
+    # beauty_supplies = ["beautycounter"]
     subscription = ["applecom", "amazonprime", "netflix", "disney", "hulu", "spotify", "youtube", "youtube premium", "youtube.com"]
     gas = ["royalfarms", "exxon", "wawa", "royal farms"]
-    insurance = ["lpl", "healthy paws", "ohio national"]
+    insurance = ["healthy paws", "ohio national","mass mutual", "usaa property and casualty insurance","northwestern"]
     bilbrowhomes = ["bilbrowhomes", "bilbrow homes", "bobrow", "chase", "chase", "chase.com", "chase bank", "mr. cooper", "cooper", "mr cooper"]
-    income = ["istari", "istari federal", "istari federal pay akpf"]
+    income = ["istari", "istari federal", "istari federal pay akpf", "srectrade inc"]
     tithe = ["horizon", "tithe.ly", "compassion international","tithe"]
     transfer = ["usaa transfer", "capital one payment", "capital one", "apple savings transfer"]
     required = ["roundpoint", "mortgage"]
@@ -89,42 +89,76 @@ def categorize_transaction(description, current_category=None):
     automotive = ["toyota"]
     # savings = []
     health = ["equip", "valence nutra", "doctors supplement store", "sp bodybio inc", "revive"]
+    retirement = ["lpl financial"]
+
 
     # Now check if any keyword is in the cleaned description
-    if any(keyword in description_clean for keyword in groceries_keywords):
-        return "Groceries"
+    if any(keyword in description_clean for keyword in required):
+        return "Required"
+    elif any(keyword in description_clean for keyword in tithe):
+        return "Tithe"
+    elif any(keyword in description_clean for keyword in utilities):
+        return "Utilities"
+    elif any(keyword in description_clean for keyword in insurance):
+        return "Insurance"
     elif any(keyword in description_clean for keyword in dining_keywords):
         return "Dining"
-    elif any(keyword in description_clean for keyword in target_keywords):
-        return "Target"
+    elif any(keyword in description_clean for keyword in groceries_keywords):
+        return "Groceries"
+    elif any(keyword in description_clean for keyword in automotive):
+        return "Automotive"
     elif any(keyword in description_clean for keyword in home_supplies_keywords):
         return "Home_Supplies"
-    elif any(keyword in description_clean for keyword in beauty_supplies):
-        return "Beauty"
+    elif any(keyword in description_clean for keyword in target_keywords):
+        return "Target"
     elif any(keyword in description_clean for keyword in subscription):
         return "Subscription"
     elif any(keyword in description_clean for keyword in gas):
         return "Gas"
-    elif any(keyword in description_clean for keyword in insurance):
-        return "Insurance"
     elif any(keyword in description_clean for keyword in bilbrowhomes):
         return "bilbrowhomes"
-    elif any(keyword in description_clean for keyword in income):
-        return "Income"
-    elif any(keyword in description_clean for keyword in tithe):
-        return "Tithe"
-    elif any(keyword in description_clean for keyword in transfer):
-        return "Transfer"
-    elif any(keyword in description_clean for keyword in required):
-        return "Required"
-    elif any(keyword in description_clean for keyword in utilities):
-        return "Utilities"
-    elif any(keyword in description_clean for keyword in automotive):
-        return "Automotive"
     elif any(keyword in description_clean for keyword in health):
         return "Health"
+    elif any(keyword in description_clean for keyword in retirement):
+        return "Retreirement"
+    elif any(keyword in description_clean for keyword in income):
+        return "Income"
+    elif any(keyword in description_clean for keyword in transfer):
+        return "Transfer"
     else:
         return "Misc"
+    
+    # if any(keyword in description_clean for keyword in groceries_keywords):
+    #     return "Groceries"
+    # elif any(keyword in description_clean for keyword in dining_keywords):
+    #     return "Dining"
+    # elif any(keyword in description_clean for keyword in target_keywords):
+    #     return "Target"
+    # elif any(keyword in description_clean for keyword in home_supplies_keywords):
+    #     return "Home_Supplies"
+    # # elif any(keyword in description_clean for keyword in beauty_supplies):
+    # #     return "Beauty"
+    # elif any(keyword in description_clean for keyword in subscription):
+    #     return "Subscription"
+    # elif any(keyword in description_clean for keyword in gas):
+    #     return "Gas"
+    # elif any(keyword in description_clean for keyword in insurance):
+    #     return "Insurance"
+    # elif any(keyword in description_clean for keyword in bilbrowhomes):
+    #     return "bilbrowhomes"
+
+    # elif any(keyword in description_clean for keyword in tithe):
+    #     return "Tithe"
+
+    # elif any(keyword in description_clean for keyword in required):
+    #     return "Required"
+    # elif any(keyword in description_clean for keyword in utilities):
+    #     return "Utilities"
+    # elif any(keyword in description_clean for keyword in automotive):
+    #     return "Automotive"
+
+    # else:
+    #     return "Misc"
 
 def main():
     # Get the directory where the script is located
