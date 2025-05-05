@@ -1,23 +1,27 @@
 # Budget App
 
 The Budget App is a suite of Python scripts designed to help you import, track, and visualize your expenses. It consists of several modules that work together:  
+	•	0-budget_app.py: Orchestrates the CSV import, expense tracking, and visualization scripts over a specified date range.  
 	•	1-import_csv-TWO.py: Imports and cleans your expense CSV files.  
 	•	2-track-expense.py: Processes your expenses, calculates budgets, and generates summary tables and charts.  
 	•	3-visualize_budget_history.py: Visualizes your historical budget data.  
+	•	gui.py: Provides a graphical interface (Tkinter) with tabs to run both the orchestrator and misc analysis scripts.  
 
-misc_analysis.py: Provides detailed analysis of “Misc” category expenses, including aggregated monthly data and individual transaction details.
+	•	misc_analysis.py: Provides detailed analysis of “Misc” category expenses, including aggregated monthly data, transaction listing, keyword and date-range filtering.
 
 ### Features
 - CSV Import & Cleanup: Import expense data from CSV files and automatically update your budget categories.  
 - Expense Tracking: Summarize expenses by category, compute remaining budgets, and calculate net income.  
 - Visualization: Generate attractive charts and tables using PrettyTable and Matplotlib.  
 - Miscellaneous Analysis: Focus on the “Misc” category, viewing both aggregated totals by month and detailed transaction listings.  
+- Graphical Interface: Launch a Tkinter GUI (`gui.py`) to orchestrate scripts and analyze transactions interactively.
 
 Prerequisites
 	•	Python 3.x installed
 	•	Required Python packages:
 	•	matplotlib
 	•	prettytable
+	•	tkinter (included with standard Python distribution)
 
 You can install the required packages using:
 
@@ -86,7 +90,15 @@ python misc_analysis.py --list_transactions --sort_by date --order asc
 
 python misc_analysis.py --output misc_chart.png
 
+## Running the GUI
 
+To launch the graphical interface:
+
+```
+python gui.py
+```
+
+Use the GUI tabs to run the orchestrator (0-budget_app) and misc analysis scripts interactively.
 
 Additional Information
 	•	CSV Formats:
