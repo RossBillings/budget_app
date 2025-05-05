@@ -127,38 +127,6 @@ def categorize_transaction(description, current_category=None):
         return "Transfer"
     else:
         return "Misc"
-    
-    # if any(keyword in description_clean for keyword in groceries_keywords):
-    #     return "Groceries"
-    # elif any(keyword in description_clean for keyword in dining_keywords):
-    #     return "Dining"
-    # elif any(keyword in description_clean for keyword in target_keywords):
-    #     return "Target"
-    # elif any(keyword in description_clean for keyword in home_supplies_keywords):
-    #     return "Home_Supplies"
-    # # elif any(keyword in description_clean for keyword in beauty_supplies):
-    # #     return "Beauty"
-    # elif any(keyword in description_clean for keyword in subscription):
-    #     return "Subscription"
-    # elif any(keyword in description_clean for keyword in gas):
-    #     return "Gas"
-    # elif any(keyword in description_clean for keyword in insurance):
-    #     return "Insurance"
-    # elif any(keyword in description_clean for keyword in bilbrowhomes):
-    #     return "bilbrowhomes"
-
-    # elif any(keyword in description_clean for keyword in tithe):
-    #     return "Tithe"
-
-    # elif any(keyword in description_clean for keyword in required):
-    #     return "Required"
-    # elif any(keyword in description_clean for keyword in utilities):
-    #     return "Utilities"
-    # elif any(keyword in description_clean for keyword in automotive):
-    #     return "Automotive"
-
-    # else:
-    #     return "Misc"
 
 def main():
     # Get the directory where the script is located
@@ -166,8 +134,8 @@ def main():
 
     # List of input CSV files
     input_csvs = [
-        os.path.join(script_dir, "Expense_Inputs", "CapOne_03-2025.csv"),
-        os.path.join(script_dir, "Expense_Inputs", "USAA_03-2025.csv")
+        os.path.join(script_dir, "Expense_Inputs", "CapOne_input_2025.csv"),
+        os.path.join(script_dir, "Expense_Inputs", "USAA_2025.csv")
     ]
 
     # Output CSV file

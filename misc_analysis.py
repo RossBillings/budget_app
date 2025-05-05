@@ -18,6 +18,9 @@ def parse_args():
                         help="If provided, the chart will be saved to this file instead of being shown")
     parser.add_argument("--list_transactions", action="store_true", help="Print all individual transactions sorted per input")
     parser.add_argument("--category", type=str, default="misc", help="The category to analyze (default: misc)")
+    parser.add_argument("--keyword", type=str, default="", help="Filter transactions by keyword in description")
+    parser.add_argument("--start_date", type=str, default="", help="Start date inclusive filter (YYYY-MM-DD)")
+    parser.add_argument("--end_date", type=str, default="", help="End date inclusive filter (YYYY-MM-DD)")
     return parser.parse_args()
 
 def aggregate_misc_expenses(input_file):
@@ -135,10 +138,60 @@ def plot_misc_expenses(aggregated, sort_by="date", order="asc", output_file=""):
     else:
         plt.show()
 
+def filter_transactions(input_file, keyword, start_date_str, end_date_str):
+    """Returns list of transactions matching keyword and date range."""
+    transactions = []
+    # parse date bounds
+    start = None
+    end = None
+    if start_date_str:
+        try:
+            start = datetime.strptime(start_date_str, "%Y-%m-%d")
+        except ValueError:
+            print(f"Invalid start_date: {start_date_str}"); return []
+    if end_date_str:
+        try:
+            end = datetime.strptime(end_date_str, "%Y-%m-%d")
+        except ValueError:
+            print(f"Invalid end_date: {end_date_str}"); return []
+    with open(input_file, "r") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            desc = row.get("Description","").strip()
+            if keyword.lower() not in desc.lower():
+                continue
+            # parse date
+            try:
+                dt = datetime.strptime(row.get("Transaction Date","").strip(), "%Y-%m-%d")
+            except ValueError:
+                continue
+            if start and dt < start:
+                continue
+            if end and dt > end:
+                continue
+            # parse amount
+            try:
+                amt = float(row.get("Amount","").strip())
+            except ValueError:
+                continue
+            transactions.append({"Transaction Date": dt, "Description": desc, "Amount": amt})
+    return transactions
+
 def main():
     global args_category
     args = parse_args()
     args_category = args.category.strip().lower()
+    # filter by keyword or date range overrides category
+    if args.keyword or args.start_date or args.end_date:
+        txns = filter_transactions(args.input, args.keyword, args.start_date, args.end_date)
+        if not txns:
+            print(f"No transactions found for keyword '{args.keyword}' or date range.")
+            return
+        print("\nFiltered Transactions:")
+        print_misc_transactions(txns, sort_by=args.sort_by, order=args.order)
+        total = sum(t["Amount"] for t in txns)
+        print(f"\nTotal for '{args.keyword}' or date range: ${total:.2f}")
+        return
     aggregated = aggregate_misc_expenses(args.input)
     if not aggregated:
         print("No expense data found.")
@@ -163,3 +216,12 @@ if __name__ == "__main__":
     # python misc_analysis.py --sort_by value --order desc
     # python misc_analysis.py --list_transactions --sort_by date --order asc
     # python misc_analysis.py --list_transactions --sort_by date --order asc --category dining
+
+#     python3 misc_analysis.py \
+#   --keyword wegmans \
+#   --start_date 2025-04-01 \
+#   --end_date 2025-04-30
+
+# python3 misc_analysis.py \
+#   --start_date 2025-04-01 \
+#   --end_date   2025-04-30

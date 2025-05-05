@@ -133,25 +133,25 @@ def print_total_income(expense_file_path, year, month):
     print(f"Total Income for {month}/{year}: ${income_sum:.2f}")
 
 
-def calculate_net_income_from_categories(amount_by_category):
-    """Calculate net income for the month by subtracting all expense categories (excluding 'Income') from the total income.
-    This version uses the raw expense amounts (without applying absolute values) so that the calculations match the category-wise summary.
-    """
-    income_total = amount_by_category.get('Income', 0)
-    # If the income total is negative, invert it (assume it was recorded with the wrong sign)
-    if income_total < 0:
-        income_total = -income_total
-    # Sum the expense amounts for non-income categories without taking the absolute value
-    other_expenses = sum(amount for cat, amount in amount_by_category.items() if cat.strip().lower() != 'income')
-    net_income = income_total - other_expenses
-    table = PrettyTable()
-    table.field_names = ["Net Income for the Month"]
-    # Show the full equation in the table
-    equation = f"${income_total:.2f} - ${other_expenses:.2f} = ${net_income:.2f}"
-    table.add_row([equation])
-    print("\nNet Income Summary:")
-    print(table)
-    return net_income
+# def calculate_net_income_from_categories(amount_by_category):
+#     """Calculate net income for the month by subtracting all expense categories (excluding 'Income') from the total income.
+#     This version uses the raw expense amounts (without applying absolute values) so that the calculations match the category-wise summary.
+#     """
+#     income_total = amount_by_category.get('Income', 0)
+#     # If the income total is negative, invert it (assume it was recorded with the wrong sign)
+#     if income_total < 0:
+#         income_total = -income_total
+#     # Sum the expense amounts for non-income categories without taking the absolute value
+#     other_expenses = sum(amount for cat, amount in amount_by_category.items() if cat.strip().lower() != 'income')
+#     net_income = income_total - other_expenses
+#     table = PrettyTable()
+#     table.field_names = ["Net Income for the Month"]
+#     # Show the full equation in the table
+#     equation = f"${income_total:.2f} - ${other_expenses:.2f} = ${net_income:.2f}"
+#     table.add_row([equation])
+#     print("\nNet Income Summary:")
+#     print(table)
+#     return net_income
 
 
 # Preparation for CLI
@@ -270,7 +270,7 @@ def main():
     write_budget_analysis_to_csv(output_csv_name, analysis_year, analysis_month, category_budgets, amount_by_category)
 
     # Calculate and display net income: total income minus all expenses (excluding Income category)
-    calculate_net_income_from_categories(amount_by_category)
+    # calculate_net_income_from_categories(amount_by_category)
 
 if __name__ == "__main__":
     main()
