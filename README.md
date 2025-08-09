@@ -1,5 +1,7 @@
 # Budget App
 
+A powerful, SQLite-based budget tracking and analysis application that helps you manage and visualize your expenses with ease.
+
 The Budget App is a suite of Python scripts designed to help you import, track, and visualize your expenses. It consists of several modules that work together:  
 	•	0-budget_app.py: Orchestrates the CSV import, expense tracking, and visualization scripts over a specified date range.  
 	•	1-import_csv-TWO.py: Imports and cleans your expense CSV files.  
@@ -10,40 +12,72 @@ The Budget App is a suite of Python scripts designed to help you import, track, 
 	•	misc_analysis.py: Provides detailed analysis of “Misc” category expenses, including aggregated monthly data, transaction listing, keyword and date-range filtering.
 
 ### Features
+- **SQLite Database**: All your financial data is stored in a single, portable SQLite database file (`budget.db`).
 - CSV Import & Cleanup: Import expense data from CSV files and automatically update your budget categories.  
 - Expense Tracking: Summarize expenses by category, compute remaining budgets, and calculate net income.  
 - Visualization: Generate attractive charts and tables using PrettyTable and Matplotlib.  
 - Miscellaneous Analysis: Focus on the “Misc” category, viewing both aggregated totals by month and detailed transaction listings.  
 - Graphical Interface: Launch a Tkinter GUI (`gui.py`) to orchestrate scripts and analyze transactions interactively.
 
-Prerequisites
+## Database Schema
+
+The application uses a single `transactions` table with the following structure:
+
+```sql
+CREATE TABLE transactions (
+    id TEXT PRIMARY KEY,
+    transaction_date DATE NOT NULL,
+    description TEXT NOT NULL,
+    amount REAL NOT NULL,
+    category TEXT NOT NULL,
+    source TEXT DEFAULT 'csv',
+    dedupe_key TEXT UNIQUE NOT NULL
+);
+
+-- Indexes for common query patterns
+CREATE INDEX idx_txn_month ON transactions (strftime('%Y-%m', transaction_date));
+CREATE INDEX idx_txn_desc_lower ON transactions (lower(description));
+CREATE INDEX idx_txn_date_category ON transactions (transaction_date, category);
+```
+
+## Prerequisites
 	•	Python 3.x installed
 	•	Required Python packages:
 	•	matplotlib
 	•	prettytable
 	•	tkinter (included with standard Python distribution)
+	•	SQLAlchemy >= 2.0.0
+	•	Alembic
+	•	python-dateutil
 
 You can install the required packages using:
 
-pip install matplotlib prettytable
+pip install matplotlib prettytable SQLAlchemy Alembic python-dateutil
 
-## Setup
-### 1.	Clone the Repository:
+## Installation
 
-git clone https://github.com/yourusername/budget_app.git
-cd budget_app
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/budget_app.git
+   cd budget_app
+   ```
 
+2. **Set up a virtual environment (recommended)**:
+   ```bash
+   python -m venv venv
+   # On Windows:
+   .\venv\Scripts\activate
+   # On macOS/Linux:
+   source venv/bin/activate
+   ```
 
-### 2.	Set Up a Virtual Environment (optional but recommended):
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-python -m venv venv
-source venv/bin/activate   # On Windows use: venv\Scripts\activate
-pip install -r requirements.txt  # If you have a requirements file, or manually install packages
-
-
-### 3. Prepare Your CSV Files:
-	•	Place your expense CSV file (e.g., cleaned_expenses2025.csv) in the Expense_Inputs folder.
-	•	Ensure your budget CSV (budgets.csv) is in the same folder. The import script will update this file with any missing categories.
+4. **Initialize the database**:
+   The database will be created automatically when you run the application for the first time.
 
 ## Usage
 
@@ -90,13 +124,38 @@ python misc_analysis.py --list_transactions --sort_by date --order asc
 
 python misc_analysis.py --output misc_chart.png
 
-## Running the GUI
+## Development
 
-To launch the graphical interface:
+### Project Structure
 
-```
-python gui.py
-```
+- `budget_app/`
+  - `__main__.py` - Main CLI application
+  - `db.py` - Database operations and session management
+  - `models.py` - SQLAlchemy models
+  - `alembic/` - Database migrations
+  - `tests/` - Unit tests
+
+### Adding New Features
+
+1. Create a new branch for your feature
+2. Add tests for the new functionality
+3. Implement the feature
+4. Run tests and ensure they pass
+5. Create a pull request
+
+### Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 Use the GUI tabs to run the orchestrator (0-budget_app) and misc analysis scripts interactively.
 

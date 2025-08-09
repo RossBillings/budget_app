@@ -157,7 +157,9 @@ def filter_transactions(input_file, keyword, start_date_str, end_date_str):
     with open(input_file, "r") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            desc = row.get("Description","").strip()
+            if row['Category'].strip().lower() != args_category:
+                continue
+            desc = row.get('Description','').strip()
             if keyword.lower() not in desc.lower():
                 continue
             # parse date

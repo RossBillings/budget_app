@@ -52,3 +52,4 @@ if __name__ == "__main__":
 
 # Example Usage
 # python3 /Users/rossbillings/GitHub/budget_app/4-deep_keyword_analysis.py Expense_Inputs/cleaned_expenses2024.csv Target
+# ython3 /Users/rossbillings/GitHub/budget_app/4-deep_keyword_analysis.py Expense_Inputs/cleaned_expenses2025.csv Groceries

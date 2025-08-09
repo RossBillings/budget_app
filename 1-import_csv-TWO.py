@@ -134,8 +134,8 @@ def main():
 
     # List of input CSV files
     input_csvs = [
-        os.path.join(script_dir, "Expense_Inputs", "CapOne_input_2025.csv"),
-        os.path.join(script_dir, "Expense_Inputs", "USAA_2025.csv")
+        os.path.join(script_dir, "Expense_Inputs", "1-CapOne_input_2025.csv"),
+        os.path.join(script_dir, "Expense_Inputs", "1-USAA_2025.csv")
     ]
 
     # Output CSV file

@@ -84,4 +84,4 @@ if __name__ == "__main__":
 
     # Example Call
     # source venv/bin/activate
-    # python 0-budget_app.py --start_year 2025 --start_month 01 --end_year 2025 --end_month 03
+    # python 0-budget_app.py --start_year 2025 --start_month 01 --end_year 2025 --end_month 04
