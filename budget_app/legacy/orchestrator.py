@@ -44,9 +44,9 @@ def orchestrate_scripts(year_start, month_start, year_end, month_end):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Script paths
-    script1 = os.path.join(script_dir, "1-import_csv-TWO.py")
-    script2 = os.path.join(script_dir, "2-track-expense.py")
-    script3 = os.path.join(script_dir, "3-visualize_budget_history.py")
+    script1 = os.path.join(script_dir, "budget_app", "legacy", "csv_import.py")
+    script2 = os.path.join(script_dir, "budget_app", "legacy", "expense_tracker.py")
+    script3 = os.path.join(script_dir, "budget_app", "legacy", "visualizer.py")
     
     # Step 1: Run 1-import_csv-TWO.py
     if not run_script(script1):

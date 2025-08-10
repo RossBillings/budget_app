@@ -1,5 +1,8 @@
 # Imports
 import os
+import sys
+sys.path.append(os.path.dirname(__file__))
+
 from expense_adv import Expense
 from budget_adv import BudgetADV
 from datetime import datetime

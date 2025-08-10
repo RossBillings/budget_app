@@ -135,12 +135,12 @@ def main():
 
     # List of input CSV files
     input_csvs = [
-        os.path.join(script_dir, "Expense_Inputs", "1-CapOne_input_2025.csv"),
-        os.path.join(script_dir, "Expense_Inputs", "1-USAA_2025.csv")
+        os.path.join(script_dir, "..", "..", "data", "inputs", "Expense_Inputs", "1-CapOne_input_2025.csv"),
+        os.path.join(script_dir, "..", "..", "data", "inputs", "Expense_Inputs", "1-USAA_2025.csv")
     ]
 
     # Output CSV file
-    output_csv = os.path.join(script_dir, "Expense_Inputs", "cleaned_expenses2025.csv")
+    output_csv = os.path.join(script_dir, "..", "..", "data", "inputs", "Expense_Inputs", "cleaned_expenses2025.csv")
 
     # Run the conversion
     convert_csv(input_csvs, output_csv)

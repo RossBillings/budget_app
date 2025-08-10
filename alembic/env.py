@@ -8,7 +8,7 @@ from alembic import context
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 # Import your models and the Base
-from budget_app.models import Base
+from budget_app.core.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -206,23 +206,41 @@ python misc_analysis.py --output misc_chart.png
 
 ```
 budget_app/
-├── budget_app/                 # Modern CLI application
-│   ├── __main__.py            # Main CLI application
-│   ├── db.py                  # Database operations and session management
-│   ├── models.py              # SQLAlchemy models with deduplication
-│   ├── tests/                 # Unit tests
-│   └── alembic/               # Database migrations
-│       ├── env.py             # Alembic environment configuration
-│       └── versions/          # Migration files
-├── 0-budget_app.py            # Legacy orchestrator script
-├── 1-import_csv-TWO.py        # Legacy CSV import script
-├── 2-track-expense.py         # Legacy expense tracking script
-├── 3-visualize_budget_history.py  # Legacy visualization script
-├── gui.py                     # Legacy Tkinter GUI
-├── misc_analysis.py           # Legacy misc analysis script
-├── requirements.txt           # Python dependencies
-├── alembic.ini               # Alembic configuration
-└── budget.db                 # SQLite database (created automatically)
+├── budget_app/                    # Main package
+│   ├── __init__.py
+│   ├── __main__.py               # CLI entry point
+│   ├── core/                     # Core functionality
+│   │   ├── __init__.py
+│   │   ├── models.py             # SQLAlchemy models with deduplication
+│   │   └── database.py           # Database operations and session management
+│   ├── cli/                      # CLI commands
+│   │   ├── __init__.py
+│   │   └── commands.py           # CLI command implementations
+│   ├── legacy/                   # Legacy scripts (backward compatibility)
+│   │   ├── __init__.py
+│   │   ├── orchestrator.py       # 0-budget_app.py
+│   │   ├── csv_import.py         # 1-import_csv-TWO.py
+│   │   ├── expense_tracker.py    # 2-track-expense.py
+│   │   ├── visualizer.py         # 3-visualize_budget_history.py
+│   │   ├── gui.py                # GUI interface
+│   │   ├── misc_analysis.py      # Misc analysis
+│   │   ├── budget_adv.py         # Budget helper
+│   │   ├── expense_adv.py        # Expense helper
+│   │   ├── category_loader.py    # Category helper
+│   │   └── budget_analysis_writer.py # Analysis writer
+│   ├── tests/                    # Unit tests
+│   └── alembic/                  # Database migrations
+├── scripts/                      # Standalone utility scripts
+│   ├── 1.5-expense_trends.py
+│   └── 4-deep_keyword_analysis.py
+├── data/                         # Data files
+│   ├── inputs/                   # Input CSV files
+│   └── outputs/                  # Generated charts/reports
+├── requirements.txt              # Python dependencies
+├── setup.py                      # Package setup
+├── alembic.ini                   # Alembic configuration
+├── budget.db                     # SQLite database (created automatically)
+└── README.md                     # This file
 ```
 
 ### Adding New Features
