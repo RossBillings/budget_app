@@ -1,5 +1,5 @@
 """SQLAlchemy models for the budget application."""
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy import (
     create_engine,
     Column,
@@ -38,7 +38,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {},
-    echo=True  # Set to False in production
+    echo=False  # Set to False to reduce logging and improve performance
 )
 
 # Session factory with scoped session for thread safety
@@ -124,12 +124,21 @@ class Transaction(Base):
             description = row.get("Description", "").strip()
             category = row.get("Category", default_category).strip().lower()
             
+            # Generate dedupe key
+            dedupe_key = cls.generate_dedupe_key(
+                transaction_date=transaction_date,
+                amount=amount,
+                description=description,
+                category=category
+            )
+            
             return cls(
                 transaction_date=transaction_date,
                 amount=amount,
                 description=description,
                 category=category,
-                source="csv"
+                source="csv",
+                dedupe_key=dedupe_key
             )
         except (ValueError, KeyError) as e:
             raise ValueError(f"Invalid CSV row data: {e}")
@@ -155,6 +164,7 @@ def sqlite_ilike(a, b):
 
 # Register the function with SQLite
 @event.listens_for(Engine, 'begin')
-def register_ilike(dbapi_connection, connection_record):
-    if hasattr(dbapi_connection, 'create_function'):
-        dbapi_connection.create_function('ilike', 2, sqlite_ilike)
+def register_ilike(connection):
+    # For SQLite, we need to access the underlying DBAPI connection
+    if hasattr(connection.connection, 'create_function'):
+        connection.connection.create_function('ilike', 2, sqlite_ilike)

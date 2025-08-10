@@ -2,12 +2,13 @@ from logging.config import fileConfig
 import os
 import sys
 from sqlalchemy import engine_from_config, pool
+from alembic import context
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 # Import your models and the Base
-from models import Base
+from budget_app.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

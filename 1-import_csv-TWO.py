@@ -7,42 +7,50 @@ def convert_csv(input_files, output_file):
     fieldnames = ['Description', 'Amount', 'Category', 'Transaction Date']
 
     for input_file in input_files:
-        with open(input_file, 'r') as infile:
-            reader = csv.DictReader(infile)
+        if not os.path.exists(input_file):
+            print(f"Warning: Input file {input_file} not found, skipping...")
+            continue
             
-            for row in reader:
-                if 'Debit' in row and 'Credit' in row:
-                    # Process INPUT.csv format
-                    amount = row['Debit'] or f"-{row['Credit']}"
-                    transaction_date = row['Transaction Date']
-                    description = row['Description']
-                else:
-                    # Process INPUT_USAA.csv format
-                    try:
-                        amount_val = float(row['Amount'])
-                        # Invert the sign for USAA input
-                        amount_val = -amount_val
-                        amount = str(amount_val)
-                    except ValueError:
-                        amount = row['Amount']
-                    transaction_date = row['Date']
-                    description = row['Description']
+        try:
+            with open(input_file, 'r') as infile:
+                reader = csv.DictReader(infile)
+                
+                for row in reader:
+                    if 'Debit' in row and 'Credit' in row:
+                        # Process INPUT.csv format
+                        amount = row['Debit'] or f"-{row['Credit']}"
+                        transaction_date = row['Transaction Date']
+                        description = row['Description']
+                    else:
+                        # Process INPUT_USAA.csv format
+                        try:
+                            amount_val = float(row['Amount'])
+                            # Invert the sign for USAA input
+                            amount_val = -amount_val
+                            amount = str(amount_val)
+                        except ValueError:
+                            amount = row['Amount']
+                        transaction_date = row['Date']
+                        description = row['Description']
 
-                # Skip rows that should be excluded
-                if should_exclude(description):
-                    continue
+                    # Skip rows that should be excluded
+                    if should_exclude(description):
+                        continue
 
-                # Automatic categorization based on the description
-                category = categorize_transaction(description)
+                    # Automatic categorization based on the description
+                    category = categorize_transaction(description)
 
-                new_row = {
-                    'Transaction Date': transaction_date,
-                    'Description': description,
-                    'Category': category,
-                    'Amount': amount
-                }
+                    new_row = {
+                        'Transaction Date': transaction_date,
+                        'Description': description,
+                        'Category': category,
+                        'Amount': amount
+                    }
 
-                combined_rows.append(new_row)
+                    combined_rows.append(new_row)
+        except Exception as e:
+            print(f"Error processing {input_file}: {e}")
+            continue
     
     # Write the combined data to the output file
     with open(output_file, 'w', newline='') as outfile:
@@ -55,13 +63,6 @@ def should_exclude(description):
     exclude_keywords = ["CAPITAL ONE MOBILE PYMT"]
     description_lower = description.lower()
     return any(keyword.lower() in description_lower for keyword in exclude_keywords)
-
-# ENTER CATEGORIES AND KEYWORDS
-# def categorize_transaction(description, current_category=None):
-    
-#      # If the current category exists and starts with '+', do not overwrite it
-#     if current_category and current_category.startswith('+'):
-#         return current_category  # Return the current category without changes
 
 def categorize_transaction(description, current_category=None):
     
@@ -120,7 +121,7 @@ def categorize_transaction(description, current_category=None):
     elif any(keyword in description_clean for keyword in health):
         return "Health"
     elif any(keyword in description_clean for keyword in retirement):
-        return "Retreirement"
+        return "Retirement"
     elif any(keyword in description_clean for keyword in income):
         return "Income"
     elif any(keyword in description_clean for keyword in transfer):

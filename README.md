@@ -2,14 +2,23 @@
 
 A powerful, SQLite-based budget tracking and analysis application that helps you manage and visualize your expenses with ease.
 
-The Budget App is a suite of Python scripts designed to help you import, track, and visualize your expenses. It consists of several modules that work together:  
-	•	0-budget_app.py: Orchestrates the CSV import, expense tracking, and visualization scripts over a specified date range.  
-	•	1-import_csv-TWO.py: Imports and cleans your expense CSV files.  
-	•	2-track-expense.py: Processes your expenses, calculates budgets, and generates summary tables and charts.  
-	•	3-visualize_budget_history.py: Visualizes your historical budget data.  
-	•	gui.py: Provides a graphical interface (Tkinter) with tabs to run both the orchestrator and misc analysis scripts.  
+The Budget App is a comprehensive Python application designed to help you import, track, and analyze your expenses. It consists of several components:
 
-	•	misc_analysis.py: Provides detailed analysis of “Misc” category expenses, including aggregated monthly data, transaction listing, keyword and date-range filtering.
+## Core Components
+
+### Modern CLI Application (`budget_app/`)
+- **`__main__.py`**: Main CLI application with commands for importing, reporting, and managing transactions
+- **`db.py`**: Database operations and session management with deduplication
+- **`models.py`**: SQLAlchemy models with automatic categorization and deduplication
+- **`alembic/`**: Database migrations for schema management
+
+### Legacy Scripts
+- **`0-budget_app.py`**: Orchestrates the CSV import, expense tracking, and visualization scripts over a specified date range
+- **`1-import_csv-TWO.py`**: Imports and cleans your expense CSV files with automatic categorization
+- **`2-track-expense.py`**: Processes your expenses, calculates budgets, and generates summary tables and charts
+- **`3-visualize_budget_history.py`**: Visualizes your historical budget data
+- **`gui.py`**: Provides a graphical interface (Tkinter) with tabs to run both the orchestrator and misc analysis scripts
+- **`misc_analysis.py`**: Provides detailed analysis of "Misc" category expenses, including aggregated monthly data, transaction listing, keyword and date-range filtering
 
 ### Features
 - **SQLite Database**: All your financial data is stored in a single, portable SQLite database file (`budget.db`).
@@ -77,11 +86,78 @@ pip install matplotlib prettytable SQLAlchemy Alembic python-dateutil
    ```
 
 4. **Initialize the database**:
-   The database will be created automatically when you run the application for the first time.
+   ```bash
+   # Run Alembic migration to create database schema
+   alembic upgrade head
+   ```
+
+## Recent Fixes and Improvements
+
+### Database and Import Issues Fixed
+- **Fixed deduplication**: Added proper `dedupe_key` generation in CSV import
+- **Resolved Alembic hanging**: Fixed database locking issues and migration conflicts
+- **Improved error handling**: Added robust error handling for missing files and invalid data
+- **Fixed SQLAlchemy session management**: Resolved detached instance errors in queries
+
+### CSV Import Improvements
+- **Automatic categorization**: Enhanced keyword-based transaction categorization
+- **Duplicate handling**: Improved batch processing to handle duplicates within CSV files
+- **Error recovery**: Better error messages and graceful handling of malformed data
+
+### CLI Enhancements
+- **Modern interface**: New CLI application with intuitive commands
+- **Advanced filtering**: Filter by category, date range, keywords, and sorting options
+- **Chart generation**: Export expense charts as PNG files
+- **Transaction management**: View, filter, and delete transactions
 
 ## Usage
 
-Running the Budget App Orchestrator
+### Modern CLI Application
+
+The main entry point for the modern CLI application is:
+
+```bash
+python -m budget_app --help
+```
+
+#### Available Commands
+
+**Import Transactions:**
+```bash
+python -m budget_app import <csv_file>
+```
+
+**View Categories:**
+```bash
+python -m budget_app categories
+```
+
+**Generate Reports:**
+```bash
+# Basic report
+python -m budget_app report
+
+# Filter by category
+python -m budget_app report --category groceries
+
+# Sort by amount (descending)
+python -m budget_app report --category dining --sort-by amount --order desc
+
+# Limit results
+python -m budget_app report --limit 10
+
+# Generate chart
+python -m budget_app report --category groceries --output chart.png
+```
+
+**Delete Transaction:**
+```bash
+python -m budget_app delete <transaction_id>
+```
+
+### Legacy Scripts
+
+**Running the Budget App Orchestrator**
 
 The main entry point for running the whole process is the 0-budget_app.py script. This script orchestrates the execution of all three main modules:
 	•	0-budget_app.py:
@@ -128,12 +204,26 @@ python misc_analysis.py --output misc_chart.png
 
 ### Project Structure
 
-- `budget_app/`
-  - `__main__.py` - Main CLI application
-  - `db.py` - Database operations and session management
-  - `models.py` - SQLAlchemy models
-  - `alembic/` - Database migrations
-  - `tests/` - Unit tests
+```
+budget_app/
+├── budget_app/                 # Modern CLI application
+│   ├── __main__.py            # Main CLI application
+│   ├── db.py                  # Database operations and session management
+│   ├── models.py              # SQLAlchemy models with deduplication
+│   ├── tests/                 # Unit tests
+│   └── alembic/               # Database migrations
+│       ├── env.py             # Alembic environment configuration
+│       └── versions/          # Migration files
+├── 0-budget_app.py            # Legacy orchestrator script
+├── 1-import_csv-TWO.py        # Legacy CSV import script
+├── 2-track-expense.py         # Legacy expense tracking script
+├── 3-visualize_budget_history.py  # Legacy visualization script
+├── gui.py                     # Legacy Tkinter GUI
+├── misc_analysis.py           # Legacy misc analysis script
+├── requirements.txt           # Python dependencies
+├── alembic.ini               # Alembic configuration
+└── budget.db                 # SQLite database (created automatically)
+```
 
 ### Adding New Features
 
@@ -171,10 +261,41 @@ Contributing
 
 If you have ideas or improvements, feel free to open an issue or submit a pull request.
 
-License
+## Troubleshooting
+
+### Common Issues
+
+**Alembic Migration Hangs:**
+```bash
+# Kill any running Python processes
+pkill -f python
+
+# Remove WAL files to reset database state
+rm -f budget.db-shm budget.db-wal
+
+# Run migration again
+alembic upgrade head
+```
+
+**Import Errors:**
+- Ensure CSV files have proper headers: `Transaction Date`, `Description`, `Amount`, `Category`
+- Check file permissions and paths
+- Verify CSV encoding (UTF-8 recommended)
+
+**Database Lock Issues:**
+- Close any other applications using the database
+- Restart the application
+- If persistent, delete and recreate the database: `rm budget.db && alembic upgrade head`
+
+### CSV Format Requirements
+
+The application supports two CSV formats:
+
+1. **Capital One Format**: Columns include `Transaction Date`, `Description`, `Debit`, `Credit`
+2. **USAA Format**: Columns include `Date`, `Description`, `Amount`
+
+The import process automatically detects the format and handles sign corrections appropriately.
+
+## License
 
 This project is open-sourced under the MIT License.
-
-⸻
-
-This README provides an overview of the repository, installation and setup instructions, usage examples for both the orchestrator and the miscellaneous analysis script, and additional context about CSV formats and handling transfers. Adjust the details as needed to match your exact repository structure and project requirements.

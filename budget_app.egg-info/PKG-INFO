@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: budget_app
+Version: 0.1
+Requires-Dist: SQLAlchemy>=2.0.0
+Requires-Dist: alembic>=1.12.0
+Requires-Dist: matplotlib>=3.7.0
+Requires-Dist: prettytable>=3.6.0
+Requires-Dist: python-dateutil>=2.8.2
+Dynamic: requires-dist

@@ -1,0 +1,2 @@
+[console_scripts]
+budget-app = budget_app.__main__:main

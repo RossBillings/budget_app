@@ -15,16 +15,15 @@ from typing import List, Optional, Tuple
 from prettytable import PrettyTable
 import matplotlib.pyplot as plt
 
-from db import (
+from .db import (
     get_aggregated_expenses,
     get_transactions,
-    get_categories,
-    get_transaction_years,
-    import_transactions_from_csv,
     delete_transaction,
+    import_transactions_from_csv,
+    get_categories,
     DatabaseError,
     DuplicateEntryError,
-    ValidationError
+    ValidationError,
 )
 
 # Set up logging

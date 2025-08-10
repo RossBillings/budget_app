@@ -16,7 +16,7 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, Query
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from models import SessionLocal, Transaction, Base, engine
+from .models import SessionLocal, Transaction, Base, engine
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -156,9 +156,21 @@ def _process_batch(db: Session, batch: List[Transaction]) -> Dict[str, int]:
             .all()
         )
         
-        # Filter out duplicates
+        # Remove duplicates within the batch itself
+        seen_keys = set()
+        unique_transactions = []
+        batch_duplicates = 0
+        
+        for txn in batch:
+            if txn.dedupe_key in seen_keys:
+                batch_duplicates += 1
+                continue
+            seen_keys.add(txn.dedupe_key)
+            unique_transactions.append(txn)
+        
+        # Filter out existing database duplicates
         new_transactions = [
-            txn for txn in batch 
+            txn for txn in unique_transactions 
             if txn.dedupe_key not in existing_keys
         ]
         
@@ -167,7 +179,7 @@ def _process_batch(db: Session, batch: List[Transaction]) -> Dict[str, int]:
             db.bulk_save_objects(new_transactions)
             result["inserted"] = len(new_transactions)
         
-        result["duplicates"] = len(batch) - len(new_transactions)
+        result["duplicates"] = batch_duplicates + (len(unique_transactions) - len(new_transactions))
         db.commit()
         
     except Exception as e:
@@ -280,7 +292,8 @@ def get_transactions(
     if isinstance(end_date, str):
         end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
     
-    with get_db() as db:
+    db = SessionLocal()
+    try:
         # Build base query
         query = db.query(Transaction).filter(
             func.lower(Transaction.category) == category.lower()
@@ -311,16 +324,26 @@ def get_transactions(
         else:
             order_column = order_column.asc()
         
+        # Apply sorting first, then pagination
+        query = query.order_by(order_column)
+        
         # Apply pagination
         if limit is not None:
             query = query.limit(limit)
         if offset is not None:
             query = query.offset(offset)
         
-        # Execute query
-        transactions = query.order_by(order_column).all()
+        # Execute query and detach objects from session
+        transactions = query.all()
+        
+        # Detach objects from session to avoid DetachedInstanceError
+        for txn in transactions:
+            db.refresh(txn)
+            db.expunge(txn)
         
         return transactions, total
+    finally:
+        db.close()
 
 
 def get_categories() -> List[Dict[str, Any]]:
