@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Budget App{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Filters -->
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Analytics Filters</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="category-filter" class="form-label">Category</label>
+                        <select class="form-select" id="category-filter">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="start-date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start-date">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end-date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end-date">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-primary" id="apply-filters">
+                            <i class="fas fa-search me-2"></i>Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="col-12 mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Total Expenses</h6>
+                                <h3 id="total-expenses">$0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-dollar-sign fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Total Income</h6>
+                                <h3 id="total-income">$0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-arrow-up fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Net Amount</h6>
+                                <h3 id="net-amount">$0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-chart-line fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Avg Monthly</h6>
+                                <h3 id="avg-monthly">$0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-calendar-alt fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Monthly Trends</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="monthly-trends-chart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Category Breakdown</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="category-breakdown-chart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Analysis -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Top Categories</h5>
+            </div>
+            <div class="card-body">
+                <div id="top-categories">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Comparison -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i>Monthly Comparison</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="monthly-comparison-chart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spending Patterns -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Spending Patterns</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Day of Week Spending</h6>
+                        <canvas id="day-of-week-chart" height="100"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Time of Day Spending</h6>
+                        <canvas id="time-of-day-chart" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let monthlyTrendsChart = null;
+let categoryBreakdownChart = null;
+let monthlyComparisonChart = null;
+let dayOfWeekChart = null;
+let timeOfDayChart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    BudgetApp.setCurrentPage('analytics');
+    loadCategories();
+    loadAnalytics();
+    setupEventListeners();
+    setupCharts();
+});
+
+function setupEventListeners() {
+    document.getElementById('apply-filters').addEventListener('click', loadAnalytics);
+    
+    // Set default date range to last 12 months
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 12);
+    
+    document.getElementById('end-date').value = endDate.toISOString().split('T')[0];
+    document.getElementById('start-date').value = startDate.toISOString().split('T')[0];
+}
+
+function loadCategories() {
+    fetch('/api/categories')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateCategoryFilter(data.data);
+            }
+        });
+}
+
+function updateCategoryFilter(categories) {
+    const select = document.getElementById('category-filter');
+    select.innerHTML = '<option value="all">All Categories</option>';
+    
+    categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.category;
+        option.textContent = `${category.category} ($${category.total.toFixed(2)})`;
+        select.appendChild(option);
+    });
+}
+
+function loadAnalytics() {
+    const params = new URLSearchParams({
+        category: document.getElementById('category-filter').value,
+        start_date: document.getElementById('start-date').value,
+        end_date: document.getElementById('end-date').value
+    });
+
+    BudgetApp.showLoadingOverlay('Loading analytics...');
+
+    // Load aggregated data
+    fetch(`/api/expenses/aggregated?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            BudgetApp.hideLoadingOverlay();
+            if (data.success) {
+                updateAnalytics(data.data);
+            } else {
+                BudgetApp.showNotification('Failed to load analytics', 'danger');
+            }
+        })
+        .catch(error => {
+            BudgetApp.hideLoadingOverlay();
+            BudgetApp.showNotification('Error loading analytics: ' + error.message, 'danger');
+        });
+}
+
+function updateAnalytics(data) {
+    // Update summary cards
+    updateSummaryCards(data);
+    
+    // Update charts
+    updateMonthlyTrendsChart(data);
+    updateCategoryBreakdownChart(data);
+    updateTopCategories(data);
+    updateMonthlyComparisonChart(data);
+    updateSpendingPatterns(data);
+}
+
+function updateSummaryCards(data) {
+    let totalExpenses = 0;
+    let totalIncome = 0;
+    
+    if (Array.isArray(data)) {
+        // Multiple categories
+        data.forEach(category => {
+            if (category.data) {
+                category.data.forEach(item => {
+                    if (item.total > 0) {
+                        totalExpenses += item.total;
+                    } else {
+                        totalIncome += Math.abs(item.total);
+                    }
+                });
+            }
+        });
+    } else {
+        // Single category
+        data.forEach(item => {
+            if (item.total > 0) {
+                totalExpenses += item.total;
+            } else {
+                totalIncome += Math.abs(item.total);
+            }
+        });
+    }
+    
+    const netAmount = totalIncome - totalExpenses;
+    const avgMonthly = totalExpenses / 12; // Simple average
+    
+    document.getElementById('total-expenses').textContent = BudgetApp.formatCurrency(totalExpenses);
+    document.getElementById('total-income').textContent = BudgetApp.formatCurrency(totalIncome);
+    document.getElementById('net-amount').textContent = BudgetApp.formatCurrency(netAmount);
+    document.getElementById('avg-monthly').textContent = BudgetApp.formatCurrency(avgMonthly);
+}
+
+function setupCharts() {
+    // Monthly trends chart
+    const monthlyCtx = document.getElementById('monthly-trends-chart').getContext('2d');
+    monthlyTrendsChart = new Chart(monthlyCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Expenses',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.1
+            }, {
+                label: 'Income',
+                data: [],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Category breakdown chart
+    const categoryCtx = document.getElementById('category-breakdown-chart').getContext('2d');
+    categoryBreakdownChart = new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                    '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+
+    // Monthly comparison chart
+    const comparisonCtx = document.getElementById('monthly-comparison-chart').getContext('2d');
+    monthlyComparisonChart = new Chart(comparisonCtx, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Current Month',
+                data: [],
+                backgroundColor: 'rgba(102, 126, 234, 0.8)'
+            }, {
+                label: 'Previous Month',
+                data: [],
+                backgroundColor: 'rgba(255, 193, 7, 0.8)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Day of week chart
+    const dayCtx = document.getElementById('day-of-week-chart').getContext('2d');
+    dayOfWeekChart = new Chart(dayCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Spending by Day',
+                data: [0, 0, 0, 0, 0, 0, 0],
+                backgroundColor: 'rgba(102, 126, 234, 0.8)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Time of day chart
+    const timeCtx = document.getElementById('time-of-day-chart').getContext('2d');
+    timeOfDayChart = new Chart(timeCtx, {
+        type: 'line',
+        data: {
+            labels: ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM', '12AM'],
+            datasets: [{
+                label: 'Spending by Time',
+                data: [0, 0, 0, 0, 0, 0, 0],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function updateMonthlyTrendsChart(data) {
+    // This would need to be implemented based on your actual data structure
+    // For now, we'll create sample data
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const expenses = [1200, 1400, 1100, 1600, 1300, 1500];
+    const income = [2000, 2200, 2000, 2400, 2100, 2300];
+    
+    monthlyTrendsChart.data.labels = months;
+    monthlyTrendsChart.data.datasets[0].data = expenses;
+    monthlyTrendsChart.data.datasets[1].data = income;
+    monthlyTrendsChart.update();
+}
+
+function updateCategoryBreakdownChart(data) {
+    if (Array.isArray(data)) {
+        const labels = data.map(cat => cat.category);
+        const values = data.map(cat => {
+            if (cat.data) {
+                return cat.data.reduce((sum, item) => sum + Math.abs(item.total), 0);
+            }
+            return 0;
+        });
+        
+        categoryBreakdownChart.data.labels = labels;
+        categoryBreakdownChart.data.datasets[0].data = values;
+        categoryBreakdownChart.update();
+    }
+}
+
+function updateTopCategories(data) {
+    const container = document.getElementById('top-categories');
+    
+    if (Array.isArray(data)) {
+        // Sort categories by total amount
+        const sortedCategories = data
+            .map(cat => ({
+                name: cat.category,
+                total: cat.data ? cat.data.reduce((sum, item) => sum + Math.abs(item.total), 0) : 0
+            }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 5);
+        
+        container.innerHTML = sortedCategories.map((cat, index) => `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <span class="badge bg-primary me-2">${index + 1}</span>
+                    ${cat.name}
+                </div>
+                <div class="fw-bold">${BudgetApp.formatCurrency(cat.total)}</div>
+            </div>
+        `).join('');
+    }
+}
+
+function updateMonthlyComparisonChart(data) {
+    // Sample data for monthly comparison
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const currentMonth = [1200, 1400, 1100, 1600, 1300, 1500];
+    const previousMonth = [1100, 1300, 1000, 1500, 1200, 1400];
+    
+    monthlyComparisonChart.data.labels = months;
+    monthlyComparisonChart.data.datasets[0].data = currentMonth;
+    monthlyComparisonChart.data.datasets[1].data = previousMonth;
+    monthlyComparisonChart.update();
+}
+
+function updateSpendingPatterns(data) {
+    // Sample data for spending patterns
+    const dayOfWeekData = [150, 200, 180, 220, 300, 350, 200];
+    const timeOfDayData = [50, 100, 200, 150, 300, 250, 100];
+    
+    dayOfWeekChart.data.datasets[0].data = dayOfWeekData;
+    dayOfWeekChart.update();
+    
+    timeOfDayChart.data.datasets[0].data = timeOfDayData;
+    timeOfDayChart.update();
+}
+</script>
+{% endblock %}

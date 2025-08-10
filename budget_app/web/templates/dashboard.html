@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Budget App{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Summary Cards -->
+    <div class="col-12 mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Total Expenses</h6>
+                                <h3 id="total-expenses">$0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-dollar-sign fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Total Income</h6>
+                                <h3 id="total-income">$0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-arrow-up fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Transactions</h6>
+                                <h3 id="total-transactions">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-list fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Categories</h6>
+                                <h3 id="total-categories">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-tags fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filters</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="category-filter" class="form-label">Category</label>
+                        <select class="form-select" id="category-filter">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="date-range" class="form-label">Date Range</label>
+                        <select class="form-select" id="date-range">
+                            <option value="all">All Time</option>
+                            <option value="this-month">This Month</option>
+                            <option value="last-month">Last Month</option>
+                            <option value="this-year">This Year</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="start-date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start-date">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end-date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end-date">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label for="keyword-search" class="form-label">Keyword Search</label>
+                        <input type="text" class="form-control" id="keyword-search" placeholder="Search transactions...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="sort-by" class="form-label">Sort By</label>
+                        <select class="form-select" id="sort-by">
+                            <option value="date">Date</option>
+                            <option value="amount">Amount</option>
+                            <option value="description">Description</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="sort-order" class="form-label">Order</label>
+                        <select class="form-select" id="sort-order">
+                            <option value="desc">Descending</option>
+                            <option value="asc">Ascending</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button class="btn btn-primary" id="apply-filters">
+                            <i class="fas fa-search me-2"></i>Apply Filters
+                        </button>
+                        <button class="btn btn-secondary" id="reset-filters">
+                            <i class="fas fa-undo me-2"></i>Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Monthly Expenses</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="monthly-chart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Category Breakdown</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="category-chart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Recent Transactions</h5>
+                <a href="{{ url_for('transactions_page') }}" class="btn btn-sm btn-outline-primary">
+                    View All <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="transactions-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody">
+                            <!-- Transactions will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary" id="load-more">
+                        <i class="fas fa-plus me-2"></i>Load More
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Dashboard-specific JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dashboard
+    loadDashboardData();
+    setupEventListeners();
+    setupCharts();
+});
+
+function loadDashboardData() {
+    // Load categories
+    fetch('/api/categories')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateCategoryFilter(data.data);
+                updateSummaryCards(data.data);
+            }
+        });
+
+    // Load transactions
+    loadTransactions();
+}
+
+function setupEventListeners() {
+    // Filter events
+    document.getElementById('apply-filters').addEventListener('click', loadTransactions);
+    document.getElementById('reset-filters').addEventListener('click', resetFilters);
+    document.getElementById('load-more').addEventListener('click', loadMoreTransactions);
+    
+    // Date range change
+    document.getElementById('date-range').addEventListener('change', handleDateRangeChange);
+}
+
+function updateCategoryFilter(categories) {
+    const select = document.getElementById('category-filter');
+    select.innerHTML = '<option value="all">All Categories</option>';
+    
+    categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.category;
+        option.textContent = `${category.category} ($${category.total.toFixed(2)})`;
+        select.appendChild(option);
+    });
+}
+
+function updateSummaryCards(categories) {
+    let totalExpenses = 0;
+    let totalIncome = 0;
+    
+    categories.forEach(category => {
+        if (category.total > 0) {
+            totalExpenses += category.total;
+        } else {
+            totalIncome += Math.abs(category.total);
+        }
+    });
+    
+    document.getElementById('total-expenses').textContent = `$${totalExpenses.toFixed(2)}`;
+    document.getElementById('total-income').textContent = `$${totalIncome.toFixed(2)}`;
+    document.getElementById('total-transactions').textContent = categories.length;
+    document.getElementById('total-categories').textContent = categories.length;
+}
+
+function loadTransactions() {
+    const params = new URLSearchParams({
+        category: document.getElementById('category-filter').value,
+        start_date: document.getElementById('start-date').value,
+        end_date: document.getElementById('end-date').value,
+        keyword: document.getElementById('keyword-search').value,
+        sort_by: document.getElementById('sort-by').value,
+        order: document.getElementById('sort-order').value,
+        limit: 10
+    });
+
+    fetch(`/api/transactions?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayTransactions(data.data);
+            }
+        });
+}
+
+function displayTransactions(transactions) {
+    const tbody = document.getElementById('transactions-tbody');
+    tbody.innerHTML = '';
+    
+    transactions.forEach(transaction => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${new Date(transaction.date).toLocaleDateString()}</td>
+            <td>${transaction.description}</td>
+            <td><span class="badge bg-secondary">${transaction.category}</span></td>
+            <td class="${transaction.amount >= 0 ? 'text-danger' : 'text-success'}">
+                ${transaction.amount >= 0 ? '+' : ''}$${transaction.amount.toFixed(2)}
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction('${transaction.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function resetFilters() {
+    document.getElementById('category-filter').value = 'all';
+    document.getElementById('date-range').value = 'all';
+    document.getElementById('start-date').value = '';
+    document.getElementById('end-date').value = '';
+    document.getElementById('keyword-search').value = '';
+    document.getElementById('sort-by').value = 'date';
+    document.getElementById('sort-order').value = 'desc';
+    
+    loadTransactions();
+}
+
+function handleDateRangeChange() {
+    const range = document.getElementById('date-range').value;
+    const startDate = document.getElementById('start-date');
+    const endDate = document.getElementById('end-date');
+    
+    if (range === 'custom') {
+        startDate.disabled = false;
+        endDate.disabled = false;
+    } else {
+        startDate.disabled = true;
+        endDate.disabled = true;
+        
+        const now = new Date();
+        if (range === 'this-month') {
+            startDate.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            endDate.value = now.toISOString().split('T')[0];
+        } else if (range === 'last-month') {
+            startDate.value = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+            endDate.value = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+        } else if (range === 'this-year') {
+            startDate.value = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+            endDate.value = now.toISOString().split('T')[0];
+        }
+    }
+}
+
+function deleteTransaction(id) {
+    if (confirm('Are you sure you want to delete this transaction?')) {
+        fetch(`/api/transactions/${id}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadTransactions();
+                    loadDashboardData();
+                } else {
+                    alert('Error deleting transaction: ' + data.error);
+                }
+            });
+    }
+}
+
+function setupCharts() {
+    // Monthly expenses chart
+    const monthlyCtx = document.getElementById('monthly-chart').getContext('2d');
+    new Chart(monthlyCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Monthly Expenses',
+                data: [],
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // Category breakdown chart
+    const categoryCtx = document.getElementById('category-chart').getContext('2d');
+    new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                    '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+</script>
+{% endblock %}

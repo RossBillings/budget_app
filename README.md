@@ -12,12 +12,18 @@ The Budget App is a comprehensive Python application designed to help you import
 - **`models.py`**: SQLAlchemy models with automatic categorization and deduplication
 - **`alembic/`**: Database migrations for schema management
 
-### Legacy Scripts
-- **`0-budget_app.py`**: Orchestrates the CSV import, expense tracking, and visualization scripts over a specified date range
-- **`1-import_csv-TWO.py`**: Imports and cleans your expense CSV files with automatic categorization
-- **`2-track-expense.py`**: Processes your expenses, calculates budgets, and generates summary tables and charts
-- **`3-visualize_budget_history.py`**: Visualizes your historical budget data
-- **`gui.py`**: Provides a graphical interface (Tkinter) with tabs to run both the orchestrator and misc analysis scripts
+### Modern Web Interface (`budget_app/web/`)
+- **`app.py`**: Flask web application with RESTful API endpoints
+- **`server.py`**: Web server entry point for development
+- **`templates/`**: HTML templates for dashboard, transactions, analytics, and upload pages
+- **`static/`**: CSS and JavaScript files for modern, responsive UI
+- **Features**: Real-time updates, drag-and-drop file upload, interactive charts, intuitive data selections
+
+### Legacy Scripts (`budget_app/legacy/`)
+- **`orchestrator.py`**: Orchestrates the CSV import, expense tracking, and visualization scripts over a specified date range
+- **`csv_import.py`**: Imports and cleans your expense CSV files with automatic categorization
+- **`expense_tracker.py`**: Processes your expenses, calculates budgets, and generates summary tables and charts
+- **`visualizer.py`**: Visualizes your historical budget data
 - **`misc_analysis.py`**: Provides detailed analysis of "Misc" category expenses, including aggregated monthly data, transaction listing, keyword and date-range filtering
 
 ### Features
@@ -111,6 +117,39 @@ pip install matplotlib prettytable SQLAlchemy Alembic python-dateutil
 - **Transaction management**: View, filter, and delete transactions
 
 ## Usage
+
+### Modern Web Interface
+
+The Budget App now includes a beautiful, modern web interface with real-time updates and intuitive data selections.
+
+#### Starting the Web Server
+
+```bash
+# Option 1: Using the run script
+python run_web_server.py
+
+# Option 2: Using the module directly
+python -m budget_app.web.server
+```
+
+The web server will start on `http://127.0.0.1:5000` by default.
+
+#### Web Interface Features
+
+- **Dashboard**: Overview with summary cards, charts, and recent transactions
+- **Transactions**: Full transaction management with filtering, sorting, and export
+- **Analytics**: Interactive charts and spending pattern analysis
+- **Import**: Drag-and-drop CSV file upload with real-time progress
+
+#### Configuration
+
+You can configure the web server using environment variables:
+
+```bash
+export FLASK_HOST=0.0.0.0  # Listen on all interfaces
+export FLASK_PORT=8080     # Use port 8080
+export FLASK_DEBUG=False   # Disable debug mode
+```
 
 ### Modern CLI Application
 

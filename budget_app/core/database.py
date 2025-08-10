@@ -403,3 +403,143 @@ def delete_transaction(transaction_id: str) -> bool:
             db.commit()
             return True
         return False
+
+
+def get_aggregated_expenses_by_month(
+    category: Optional[str] = None,
+    start_date: Optional[Union[date, str]] = None,
+    end_date: Optional[Union[date, str]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Get aggregated expenses grouped by month.
+    
+    Args:
+        category: Optional category filter
+        start_date: Optional start date filter
+        end_date: Optional end date filter
+        
+    Returns:
+        List of dictionaries with month and total amount
+    """
+    with get_db() as db:
+        query = db.query(
+            func.strftime('%Y-%m', Transaction.transaction_date).label('month'),
+            func.sum(Transaction.amount).label('total')
+        )
+        
+        # Apply filters
+        if category and category != 'all':
+            query = query.filter(Transaction.category == category)
+        if start_date:
+            if isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            query = query.filter(Transaction.transaction_date >= start_date)
+        if end_date:
+            if isinstance(end_date, str):
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            query = query.filter(Transaction.transaction_date <= end_date)
+        
+        # Group by month and order by month
+        query = query.group_by(func.strftime('%Y-%m', Transaction.transaction_date))
+        query = query.order_by(func.strftime('%Y-%m', Transaction.transaction_date))
+        
+        results = query.all()
+        
+        return [
+            {
+                'month': result.month,
+                'total': float(result.total) if result.total else 0.0
+            }
+            for result in results
+        ]
+
+
+def get_spending_patterns(
+    start_date: Optional[Union[date, str]] = None,
+    end_date: Optional[Union[date, str]] = None
+) -> Dict[str, Any]:
+    """
+    Get spending patterns analysis.
+    
+    Args:
+        start_date: Optional start date filter
+        end_date: Optional end date filter
+        
+    Returns:
+        Dictionary with spending pattern data
+    """
+    with get_db() as db:
+        # Base query
+        base_query = db.query(Transaction)
+        
+        # Apply date filters
+        if start_date:
+            if isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            base_query = base_query.filter(Transaction.transaction_date >= start_date)
+        if end_date:
+            if isinstance(end_date, str):
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            base_query = base_query.filter(Transaction.transaction_date <= end_date)
+        
+        # Day of week analysis
+        day_of_week_query = base_query.with_entities(
+            func.strftime('%w', Transaction.transaction_date).label('day_of_week'),
+            func.sum(Transaction.amount).label('total')
+        ).group_by(func.strftime('%w', Transaction.transaction_date))
+        
+        day_results = day_of_week_query.all()
+        day_patterns = [0] * 7  # Initialize array for 7 days
+        for result in day_results:
+            day_index = int(result.day_of_week)
+            day_patterns[day_index] = float(result.total) if result.total else 0.0
+        
+        # Time of day analysis (using transaction ID as proxy for time)
+        # This is a simplified approach - in a real app you'd have actual timestamps
+        time_patterns = [0] * 24  # Initialize array for 24 hours
+        
+        return {
+            'day_of_week': day_patterns,
+            'time_of_day': time_patterns
+        }
+
+
+def get_monthly_comparison(
+    start_date: Optional[Union[date, str]] = None,
+    end_date: Optional[Union[date, str]] = None
+) -> Dict[str, Any]:
+    """
+    Get monthly comparison data.
+    
+    Args:
+        start_date: Optional start date filter
+        end_date: Optional end date filter
+        
+    Returns:
+        Dictionary with current and previous month data
+    """
+    with get_db() as db:
+        # Get current month data
+        current_month_query = db.query(
+            func.sum(Transaction.amount).label('total')
+        ).filter(
+            func.strftime('%Y-%m', Transaction.transaction_date) == 
+            func.strftime('%Y-%m', 'now')
+        )
+        
+        # Get previous month data
+        previous_month_query = db.query(
+            func.sum(Transaction.amount).label('total')
+        ).filter(
+            func.strftime('%Y-%m', Transaction.transaction_date) == 
+            func.strftime('%Y-%m', 'now', '-1 month')
+        )
+        
+        current_total = current_month_query.scalar() or 0.0
+        previous_total = previous_month_query.scalar() or 0.0
+        
+        return {
+            'current_month': float(current_total),
+            'previous_month': float(previous_total),
+            'change_percentage': ((current_total - previous_total) / previous_total * 100) if previous_total != 0 else 0
+        }

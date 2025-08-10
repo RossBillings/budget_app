@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}Import Data - Budget App{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-upload me-2"></i>Import Transactions</h4>
+            </div>
+            <div class="card-body">
+                <!-- File Upload Area -->
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-content">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                        <h5>Drag & Drop CSV Files Here</h5>
+                        <p class="text-muted">or click to browse files</p>
+                        <input type="file" id="file-input" accept=".csv" multiple style="display: none;">
+                        <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                            <i class="fas fa-folder-open me-2"></i>Choose Files
+                        </button>
+                    </div>
+                </div>
+
+                <!-- File List -->
+                <div id="file-list" class="mt-4" style="display: none;">
+                    <h6>Selected Files:</h6>
+                    <div id="files-container"></div>
+                </div>
+
+                <!-- Import Options -->
+                <div class="mt-4">
+                    <h6>Import Options:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="default-category" class="form-label">Default Category</label>
+                            <select class="form-select" id="default-category">
+                                <option value="misc">Miscellaneous</option>
+                                <option value="groceries">Groceries</option>
+                                <option value="dining">Dining</option>
+                                <option value="transportation">Transportation</option>
+                                <option value="utilities">Utilities</option>
+                                <option value="entertainment">Entertainment</option>
+                                <option value="shopping">Shopping</option>
+                                <option value="health">Health</option>
+                                <option value="income">Income</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="source" class="form-label">Source</label>
+                            <input type="text" class="form-control" id="source" value="csv" placeholder="Data source identifier">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Import Button -->
+                <div class="mt-4 text-center">
+                    <button class="btn btn-success btn-lg" id="import-btn" disabled>
+                        <i class="fas fa-play me-2"></i>Start Import
+                    </button>
+                </div>
+
+                <!-- Progress -->
+                <div id="import-progress" class="mt-4" style="display: none;">
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             id="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p class="text-center" id="progress-text">Preparing import...</p>
+                </div>
+
+                <!-- Results -->
+                <div id="import-results" class="mt-4" style="display: none;">
+                    <div class="alert alert-success">
+                        <h6><i class="fas fa-check-circle me-2"></i>Import Complete!</h6>
+                        <div id="results-details"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSV Format Guide -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>CSV Format Guide</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Capital One Format:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Transaction Date</th>
+                                        <th>Description</th>
+                                        <th>Debit</th>
+                                        <th>Credit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>2025-01-15</td>
+                                        <td>TARGET 00010454</td>
+                                        <td>25.50</td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>USAA Format:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Description</th>
+                                        <th>Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>2025-01-15</td>
+                                        <td>USAA Transfer</td>
+                                        <td>-1000.00</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Tip:</strong> The system automatically detects the format and handles sign corrections appropriately.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-area:hover {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+}
+
+.upload-area.dragover {
+    border-color: #28a745;
+    background-color: #d4edda;
+}
+
+.upload-content {
+    pointer-events: none;
+}
+
+.file-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    background-color: #f8f9fa;
+}
+
+.file-item .file-info {
+    flex-grow: 1;
+}
+
+.file-item .file-actions {
+    margin-left: 10px;
+}
+
+.file-size {
+    color: #6c757d;
+    font-size: 0.875em;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedFiles = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    setupDragAndDrop();
+    setupFileInput();
+    setupImportButton();
+});
+
+function setupDragAndDrop() {
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('file-input');
+
+    // Drag and drop events
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const files = Array.from(e.dataTransfer.files);
+        handleFiles(files);
+    });
+
+    // Click to upload
+    uploadArea.addEventListener('click', function() {
+        fileInput.click();
+    });
+}
+
+function setupFileInput() {
+    const fileInput = document.getElementById('file-input');
+    fileInput.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        handleFiles(files);
+    });
+}
+
+function handleFiles(files) {
+    const csvFiles = files.filter(file => file.name.toLowerCase().endsWith('.csv'));
+    
+    if (csvFiles.length === 0) {
+        alert('Please select CSV files only.');
+        return;
+    }
+
+    selectedFiles = csvFiles;
+    displayFileList();
+    updateImportButton();
+}
+
+function displayFileList() {
+    const fileList = document.getElementById('file-list');
+    const filesContainer = document.getElementById('files-container');
+    
+    if (selectedFiles.length === 0) {
+        fileList.style.display = 'none';
+        return;
+    }
+
+    fileList.style.display = 'block';
+    filesContainer.innerHTML = '';
+
+    selectedFiles.forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.innerHTML = `
+            <div class="file-info">
+                <strong>${file.name}</strong>
+                <div class="file-size">${formatFileSize(file.size)}</div>
+            </div>
+            <div class="file-actions">
+                <button class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        filesContainer.appendChild(fileItem);
+    });
+}
+
+function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    displayFileList();
+    updateImportButton();
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function updateImportButton() {
+    const importBtn = document.getElementById('import-btn');
+    importBtn.disabled = selectedFiles.length === 0;
+}
+
+function setupImportButton() {
+    const importBtn = document.getElementById('import-btn');
+    importBtn.addEventListener('click', startImport);
+}
+
+function startImport() {
+    if (selectedFiles.length === 0) return;
+
+    // Show progress
+    document.getElementById('import-progress').style.display = 'block';
+    document.getElementById('import-results').style.display = 'none';
+    
+    // Disable import button
+    document.getElementById('import-btn').disabled = true;
+
+    // Import each file
+    let completed = 0;
+    const total = selectedFiles.length;
+    const results = [];
+
+    selectedFiles.forEach((file, index) => {
+        importFile(file, index).then(result => {
+            results.push(result);
+            completed++;
+            
+            // Update progress
+            const progress = (completed / total) * 100;
+            document.getElementById('progress-bar').style.width = progress + '%';
+            document.getElementById('progress-text').textContent = 
+                `Imported ${completed} of ${total} files...`;
+
+            if (completed === total) {
+                showImportResults(results);
+            }
+        }).catch(error => {
+            console.error('Import error:', error);
+            completed++;
+            if (completed === total) {
+                showImportResults(results);
+            }
+        });
+    });
+}
+
+function importFile(file, index) {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('default_category', document.getElementById('default-category').value);
+        formData.append('source', document.getElementById('source').value);
+
+        fetch('/api/import', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                resolve({
+                    file: file.name,
+                    success: true,
+                    data: data.data
+                });
+            } else {
+                resolve({
+                    file: file.name,
+                    success: false,
+                    error: data.error
+                });
+            }
+        })
+        .catch(error => {
+            resolve({
+                file: file.name,
+                success: false,
+                error: error.message
+            });
+        });
+    });
+}
+
+function showImportResults(results) {
+    const resultsDiv = document.getElementById('import-results');
+    const detailsDiv = document.getElementById('results-details');
+    
+    let totalInserted = 0;
+    let totalDuplicates = 0;
+    let totalErrors = 0;
+    let successCount = 0;
+
+    results.forEach(result => {
+        if (result.success) {
+            successCount++;
+            totalInserted += result.data.inserted;
+            totalDuplicates += result.data.duplicates;
+            totalErrors += result.data.errors;
+        }
+    });
+
+    detailsDiv.innerHTML = `
+        <p><strong>Files processed:</strong> ${results.length}</p>
+        <p><strong>Successful imports:</strong> ${successCount}</p>
+        <p><strong>Total transactions inserted:</strong> ${totalInserted}</p>
+        <p><strong>Total duplicates skipped:</strong> ${totalDuplicates}</p>
+        <p><strong>Total errors:</strong> ${totalErrors}</p>
+    `;
+
+    // Hide progress, show results
+    document.getElementById('import-progress').style.display = 'none';
+    resultsDiv.style.display = 'block';
+    
+    // Re-enable import button
+    document.getElementById('import-btn').disabled = false;
+    
+    // Clear selected files
+    selectedFiles = [];
+    displayFileList();
+    updateImportButton();
+}
+</script>
+{% endblock %}
