@@ -16,7 +16,11 @@ from ..core.database import (
     get_categories,
     get_aggregated_expenses,
     import_transactions_from_csv,
-    delete_transaction
+    delete_transaction,
+    get_all_categories,
+    create_category,
+    update_category,
+    delete_category
 )
 
 def create_app():
@@ -224,5 +228,79 @@ def create_app():
     def analytics_page():
         """Analytics page."""
         return render_template('analytics.html')
+    
+    @app.route('/categories')
+    def categories_page():
+        """Categories management page."""
+        return render_template('categories.html')
+    
+    # Category Management API Endpoints
+    
+    @app.route('/api/categories/manage')
+    def api_manage_categories():
+        """Get all categories with keywords for management."""
+        try:
+            categories = get_all_categories()
+            return jsonify({'success': True, 'data': categories})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/categories/manage', methods=['POST'])
+    def api_create_category():
+        """Create a new category."""
+        try:
+            data = request.get_json()
+            if not data or not data.get('name'):
+                return jsonify({'success': False, 'error': 'Category name is required'}), 400
+            
+            result = create_category(
+                name=data['name'],
+                description=data.get('description', ''),
+                color=data.get('color', '#6c757d'),
+                keywords=data.get('keywords', [])
+            )
+            
+            return jsonify({'success': True, 'data': result})
+            
+        except ValueError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/categories/manage/<category_id>', methods=['PUT'])
+    def api_update_category(category_id):
+        """Update an existing category."""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
+            result = update_category(
+                category_id=category_id,
+                name=data.get('name'),
+                description=data.get('description'),
+                color=data.get('color'),
+                keywords=data.get('keywords')
+            )
+            
+            return jsonify({'success': True, 'data': result})
+            
+        except ValueError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/categories/manage/<category_id>', methods=['DELETE'])
+    def api_delete_category(category_id):
+        """Delete a category."""
+        try:
+            success = delete_category(category_id)
+            if success:
+                return jsonify({'success': True, 'message': 'Category deleted successfully'})
+            else:
+                return jsonify({'success': False, 'error': 'Category not found'}), 404
+                
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
     
     return app

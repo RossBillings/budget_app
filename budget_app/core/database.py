@@ -16,7 +16,7 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, Query
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from .models import SessionLocal, Transaction, Base, engine
+from .models import SessionLocal, Transaction, Category, CategoryKeyword, Base, engine
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -632,3 +632,194 @@ def get_aggregated_expenses(
     This is an alias for get_aggregated_expenses_by_month for compatibility.
     """
     return get_aggregated_expenses_by_month(category, start_date, end_date)
+
+
+# Category Management Functions
+
+def get_all_categories() -> List[Dict[str, Any]]:
+    """
+    Get all categories with their keywords.
+    
+    Returns:
+        List of category dictionaries with keywords
+    """
+    with get_db() as db:
+        categories = db.query(Category).filter(Category.is_active == "true").all()
+        
+        result = []
+        for category in categories:
+            keywords = [kw.keyword for kw in category.keywords if kw.is_active == "true"]
+            result.append({
+                'id': category.id,
+                'name': category.name,
+                'description': category.description,
+                'color': category.color,
+                'keywords': keywords,
+                'keyword_count': len(keywords),
+                'created_at': category.created_at.isoformat() if category.created_at else None
+            })
+        
+        return result
+
+
+def create_category(name: str, description: str = "", color: str = "#6c757d", keywords: List[str] = None) -> Dict[str, Any]:
+    """
+    Create a new category with optional keywords.
+    
+    Args:
+        name: Category name
+        description: Category description
+        color: Hex color code
+        keywords: List of keywords for this category
+        
+    Returns:
+        Dict with category information
+    """
+    with get_db() as db:
+        # Check if category already exists
+        existing = db.query(Category).filter(func.lower(Category.name) == name.lower()).first()
+        if existing:
+            raise ValueError(f"Category '{name}' already exists")
+        
+        # Create category
+        category = Category(
+            name=name.strip(),
+            description=description.strip(),
+            color=color,
+            is_active="true"
+        )
+        db.add(category)
+        db.flush()  # Get the ID
+        
+        # Add keywords
+        if keywords:
+            for keyword in keywords:
+                if keyword.strip():
+                    kw = CategoryKeyword(
+                        category_id=category.id,
+                        keyword=keyword.strip().lower(),
+                        is_active="true"
+                    )
+                    db.add(kw)
+        
+        db.commit()
+        
+        return {
+            'id': category.id,
+            'name': category.name,
+            'description': category.description,
+            'color': category.color,
+            'keywords': keywords or []
+        }
+
+
+def update_category(category_id: str, name: str = None, description: str = None, 
+                   color: str = None, keywords: List[str] = None) -> Dict[str, Any]:
+    """
+    Update an existing category.
+    
+    Args:
+        category_id: Category ID to update
+        name: New name (optional)
+        description: New description (optional)
+        color: New color (optional)
+        keywords: New keywords list (optional, replaces existing)
+        
+    Returns:
+        Dict with updated category information
+    """
+    with get_db() as db:
+        category = db.query(Category).filter(Category.id == category_id).first()
+        if not category:
+            raise ValueError(f"Category with ID '{category_id}' not found")
+        
+        # Update category fields
+        if name is not None:
+            # Check for duplicate name
+            existing = db.query(Category).filter(
+                func.lower(Category.name) == name.lower(),
+                Category.id != category_id
+            ).first()
+            if existing:
+                raise ValueError(f"Category '{name}' already exists")
+            category.name = name.strip()
+        
+        if description is not None:
+            category.description = description.strip()
+        
+        if color is not None:
+            category.color = color
+        
+        # Update keywords if provided
+        if keywords is not None:
+            # Remove existing keywords
+            db.query(CategoryKeyword).filter(CategoryKeyword.category_id == category_id).delete()
+            
+            # Add new keywords
+            for keyword in keywords:
+                if keyword.strip():
+                    kw = CategoryKeyword(
+                        category_id=category_id,
+                        keyword=keyword.strip().lower(),
+                        is_active="true"
+                    )
+                    db.add(kw)
+        
+        db.commit()
+        
+        # Return updated category
+        updated_keywords = [kw.keyword for kw in category.keywords if kw.is_active == "true"]
+        return {
+            'id': category.id,
+            'name': category.name,
+            'description': category.description,
+            'color': category.color,
+            'keywords': updated_keywords
+        }
+
+
+def delete_category(category_id: str) -> bool:
+    """
+    Delete a category (soft delete by setting is_active to false).
+    
+    Args:
+        category_id: Category ID to delete
+        
+    Returns:
+        bool: True if deleted successfully
+    """
+    with get_db() as db:
+        category = db.query(Category).filter(Category.id == category_id).first()
+        if not category:
+            return False
+        
+        # Soft delete category and its keywords
+        category.is_active = "false"
+        db.query(CategoryKeyword).filter(CategoryKeyword.category_id == category_id).update(
+            {"is_active": "false"}
+        )
+        
+        db.commit()
+        return True
+
+
+def get_category_keywords_map() -> Dict[str, str]:
+    """
+    Get a mapping of keywords to category names for categorization.
+    
+    Returns:
+        Dict mapping keywords to category names
+    """
+    with get_db() as db:
+        keywords = db.query(CategoryKeyword, Category).join(
+            Category, CategoryKeyword.category_id == Category.id
+        ).filter(
+            CategoryKeyword.is_active == "true",
+            Category.is_active == "true"
+        ).order_by(CategoryKeyword.priority.desc()).all()
+        
+        keyword_map = {}
+        for keyword_obj, category in keywords:
+            keyword_map[keyword_obj.keyword.lower()] = category.name
+        
+        return keyword_map

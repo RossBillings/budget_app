@@ -14,8 +14,9 @@ from sqlalchemy import (
     event,
     Table,
     MetaData,
+    ForeignKey,
 )
-from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, Session
+from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, Session, relationship
 from sqlalchemy.engine import Engine
 from typing import Optional, List, Dict, Any, Generator
 import hashlib
@@ -161,6 +162,41 @@ class Transaction(Base):
             f"category='{self.category}', "
             f"description='{self.description[:20]}...')"
         )
+
+class Category(Base):
+    """Category model for storing expense categories and their keywords."""
+    __tablename__ = "categories"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(50), nullable=False, unique=True, index=True)
+    description = Column(String(200))
+    color = Column(String(7), default="#6c757d")  # Hex color code
+    is_active = Column(String(5), default="true")  # SQLite doesn't have boolean
+    created_at = Column(Date, default=date.today)
+    
+    # Relationship to keywords
+    keywords = relationship("CategoryKeyword", back_populates="category", cascade="all, delete-orphan")
+    
+    def __repr__(self) -> str:
+        return f"<Category(id='{self.id}', name='{self.name}', active={self.is_active})>"
+
+
+class CategoryKeyword(Base):
+    """Keywords associated with categories for automatic categorization."""
+    __tablename__ = "category_keywords"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    category_id = Column(String(36), ForeignKey("categories.id"), nullable=False)
+    keyword = Column(String(100), nullable=False, index=True)
+    priority = Column(String(10), default="1")  # Higher numbers = higher priority
+    is_active = Column(String(5), default="true")
+    
+    # Relationship to category
+    category = relationship("Category", back_populates="keywords")
+    
+    def __repr__(self) -> str:
+        return f"<CategoryKeyword(keyword='{self.keyword}', category_id='{self.category_id}')>"
+
 
 # Create all tables (Alembic will handle this in production)
 # This is kept for development convenience only

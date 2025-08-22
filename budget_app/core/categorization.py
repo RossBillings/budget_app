@@ -7,13 +7,14 @@ import re
 from typing import Optional
 
 
-def categorize_transaction(description: str, current_category: Optional[str] = None) -> str:
+def categorize_transaction(description: str, current_category: Optional[str] = None, use_database: bool = True) -> str:
     """
     Automatically categorize a transaction based on its description.
     
     Args:
         description: The transaction description
         current_category: The current category (if any)
+        use_database: Whether to use database categories (True) or fallback to hardcoded (False)
         
     Returns:
         str: The categorized transaction type
@@ -25,6 +26,34 @@ def categorize_transaction(description: str, current_category: Optional[str] = N
     # Convert description to lowercase and remove punctuation
     description_clean = re.sub(r'[^\w\s]', '', description.lower())
 
+    # Try database categories first
+    if use_database:
+        try:
+            from .database import get_category_keywords_map
+            keyword_map = get_category_keywords_map()
+            
+            # Check each keyword against the description
+            for keyword, category_name in keyword_map.items():
+                if keyword in description_clean:
+                    return category_name
+        except Exception:
+            # Fall back to hardcoded categories if database fails
+            pass
+    
+    # Fallback to hardcoded categories
+    return _categorize_with_hardcoded_keywords(description_clean)
+
+
+def _categorize_with_hardcoded_keywords(description_clean: str) -> str:
+    """
+    Fallback categorization using hardcoded keywords.
+    
+    Args:
+        description_clean: Cleaned description text
+        
+    Returns:
+        str: Category name
+    """
     # Define keywords, all in lowercase
     groceries_keywords = ["wegmans", "weis", "santonis", "wine post", "lidl", "aldi"]
     dining_keywords = [
