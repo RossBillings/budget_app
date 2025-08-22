@@ -201,31 +201,67 @@
 {% block extra_js %}
 <script>
 // Dashboard-specific JavaScript
+let currentTransactionOffset = 0;
+let allTransactions = [];
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Set default date range to previous full month
+    setDefaultDateRange();
+    
     // Initialize dashboard
     loadDashboardData();
     setupEventListeners();
     setupCharts();
 });
 
+function setDefaultDateRange() {
+    const today = new Date();
+    const firstDayPrevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const lastDayPrevMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+    
+    document.getElementById('start-date').value = firstDayPrevMonth.toISOString().split('T')[0];
+    document.getElementById('end-date').value = lastDayPrevMonth.toISOString().split('T')[0];
+}
+
 function loadDashboardData() {
-    // Load categories
+    // Load categories first
     fetch('/api/categories')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 updateCategoryFilter(data.data);
-                updateSummaryCards(data.data);
             }
         });
 
+    // Load summary data for the selected date range
+    loadSummaryData();
+    
     // Load transactions
     loadTransactions();
 }
 
+function loadSummaryData() {
+    const params = new URLSearchParams({
+        category: document.getElementById('category-filter').value,
+        start_date: document.getElementById('start-date').value,
+        end_date: document.getElementById('end-date').value
+    });
+
+    fetch(`/api/transactions?${params}&limit=1000`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateSummaryCards(data.data);
+            }
+        });
+}
+
 function setupEventListeners() {
     // Filter events
-    document.getElementById('apply-filters').addEventListener('click', loadTransactions);
+    document.getElementById('apply-filters').addEventListener('click', function() {
+        loadSummaryData();
+        loadTransactions();
+    });
     document.getElementById('reset-filters').addEventListener('click', resetFilters);
     document.getElementById('load-more').addEventListener('click', loadMoreTransactions);
     
@@ -245,25 +281,32 @@ function updateCategoryFilter(categories) {
     });
 }
 
-function updateSummaryCards(categories) {
+function updateSummaryCards(transactions) {
     let totalExpenses = 0;
     let totalIncome = 0;
+    const categories = new Set();
     
-    categories.forEach(category => {
-        if (category.total > 0) {
-            totalExpenses += category.total;
+    transactions.forEach(transaction => {
+        categories.add(transaction.category);
+        if (transaction.amount > 0) {
+            totalExpenses += transaction.amount;
         } else {
-            totalIncome += Math.abs(category.total);
+            totalIncome += Math.abs(transaction.amount);
         }
     });
     
     document.getElementById('total-expenses').textContent = `$${totalExpenses.toFixed(2)}`;
     document.getElementById('total-income').textContent = `$${totalIncome.toFixed(2)}`;
-    document.getElementById('total-transactions').textContent = categories.length;
-    document.getElementById('total-categories').textContent = categories.length;
+    document.getElementById('total-transactions').textContent = transactions.length;
+    document.getElementById('total-categories').textContent = categories.size;
 }
 
-function loadTransactions() {
+function loadTransactions(append = false) {
+    if (!append) {
+        currentTransactionOffset = 0;
+        allTransactions = [];
+    }
+    
     const params = new URLSearchParams({
         category: document.getElementById('category-filter').value,
         start_date: document.getElementById('start-date').value,
@@ -271,14 +314,28 @@ function loadTransactions() {
         keyword: document.getElementById('keyword-search').value,
         sort_by: document.getElementById('sort-by').value,
         order: document.getElementById('sort-order').value,
-        limit: 10
+        limit: 10,
+        offset: currentTransactionOffset
     });
 
     fetch(`/api/transactions?${params}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayTransactions(data.data);
+                if (append) {
+                    allTransactions = allTransactions.concat(data.data);
+                } else {
+                    allTransactions = data.data;
+                }
+                displayTransactions(allTransactions);
+                
+                // Show/hide load more button
+                const loadMoreBtn = document.getElementById('load-more');
+                if (data.data.length < 10 || allTransactions.length >= data.total) {
+                    loadMoreBtn.style.display = 'none';
+                } else {
+                    loadMoreBtn.style.display = 'inline-block';
+                }
             }
         });
 }
@@ -309,12 +366,15 @@ function displayTransactions(transactions) {
 function resetFilters() {
     document.getElementById('category-filter').value = 'all';
     document.getElementById('date-range').value = 'all';
-    document.getElementById('start-date').value = '';
-    document.getElementById('end-date').value = '';
     document.getElementById('keyword-search').value = '';
     document.getElementById('sort-by').value = 'date';
     document.getElementById('sort-order').value = 'desc';
     
+    // Reset to default date range (previous month)
+    setDefaultDateRange();
+    
+    // Reload data
+    loadSummaryData();
     loadTransactions();
 }
 
@@ -344,14 +404,19 @@ function handleDateRangeChange() {
     }
 }
 
+function loadMoreTransactions() {
+    currentTransactionOffset += 10;
+    loadTransactions(true);
+}
+
 function deleteTransaction(id) {
     if (confirm('Are you sure you want to delete this transaction?')) {
         fetch(`/api/transactions/${id}`, { method: 'DELETE' })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    loadSummaryData();
                     loadTransactions();
-                    loadDashboardData();
                 } else {
                     alert('Error deleting transaction: ' + data.error);
                 }

@@ -51,6 +51,7 @@ def create_app():
             end_date = request.args.get('end_date')
             keyword = request.args.get('keyword')
             limit = request.args.get('limit', 50, type=int)
+            offset = request.args.get('offset', 0, type=int)
             sort_by = request.args.get('sort_by', 'date')
             order = request.args.get('order', 'desc')
             
@@ -63,13 +64,14 @@ def create_app():
             # Get transactions
             if category == 'all':
                 transactions, total = get_transactions(
-                    category='misc',  # Use misc as default, will be filtered by frontend
+                    category=None,  # None means all categories
                     keyword=keyword,
                     start_date=start_date,
                     end_date=end_date,
                     sort_by=sort_by,
                     order=order,
-                    limit=limit
+                    limit=limit,
+                    offset=offset
                 )
             else:
                 transactions, total = get_transactions(
@@ -79,7 +81,8 @@ def create_app():
                     end_date=end_date,
                     sort_by=sort_by,
                     order=order,
-                    limit=limit
+                    limit=limit,
+                    offset=offset
                 )
             
             # Convert to JSON-serializable format

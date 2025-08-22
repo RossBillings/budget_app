@@ -295,9 +295,13 @@ def get_transactions(
     db = SessionLocal()
     try:
         # Build base query
-        query = db.query(Transaction).filter(
-            func.lower(Transaction.category) == category.lower()
-        )
+        query = db.query(Transaction)
+        
+        # Apply category filter if provided
+        if category:
+            query = query.filter(
+                func.lower(Transaction.category) == category.lower()
+            )
         
         # Apply filters
         if keyword:
@@ -543,3 +547,16 @@ def get_monthly_comparison(
             'previous_month': float(previous_total),
             'change_percentage': ((current_total - previous_total) / previous_total * 100) if previous_total != 0 else 0
         }
+
+
+def get_aggregated_expenses(
+    category: Optional[str] = None,
+    start_date: Optional[Union[date, str]] = None,
+    end_date: Optional[Union[date, str]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Get aggregated expenses data.
+    
+    This is an alias for get_aggregated_expenses_by_month for compatibility.
+    """
+    return get_aggregated_expenses_by_month(category, start_date, end_date)
