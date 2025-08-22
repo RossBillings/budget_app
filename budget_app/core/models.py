@@ -113,8 +113,10 @@ class Transaction(Base):
         return hashlib.sha256(key_str.encode()).hexdigest()
     
     @classmethod
-    def from_csv_row(cls, row: Dict[str, str], default_category: str = "misc") -> 'Transaction':
+    def from_csv_row(cls, row: Dict[str, str], default_category: str = "misc", auto_categorize: bool = True) -> 'Transaction':
         """Create a Transaction from a CSV row dictionary."""
+        from .categorization import categorize_transaction
+        
         try:
             transaction_date = datetime.strptime(
                 row.get("Transaction Date", "").strip(), 
@@ -122,7 +124,15 @@ class Transaction(Base):
             ).date()
             amount = float(row.get("Amount", "0").strip())
             description = row.get("Description", "").strip()
-            category = row.get("Category", default_category).strip().lower()
+            
+            # Use automatic categorization if enabled, otherwise use provided category or default
+            if auto_categorize:
+                category = categorize_transaction(description, row.get("Category"))
+            else:
+                category = row.get("Category", default_category).strip()
+            
+            # Normalize category to lowercase
+            category = category.lower()
             
             # Generate dedupe key
             dedupe_key = cls.generate_dedupe_key(

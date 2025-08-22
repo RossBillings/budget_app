@@ -34,23 +34,21 @@
                     <h6>Import Options:</h6>
                     <div class="row">
                         <div class="col-md-6">
-                            <label for="default-category" class="form-label">Default Category</label>
-                            <select class="form-select" id="default-category">
-                                <option value="misc">Miscellaneous</option>
-                                <option value="groceries">Groceries</option>
-                                <option value="dining">Dining</option>
-                                <option value="transportation">Transportation</option>
-                                <option value="utilities">Utilities</option>
-                                <option value="entertainment">Entertainment</option>
-                                <option value="shopping">Shopping</option>
-                                <option value="health">Health</option>
-                                <option value="income">Income</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
                             <label for="source" class="form-label">Source</label>
                             <input type="text" class="form-control" id="source" value="csv" placeholder="Data source identifier">
                         </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="auto-categorize" checked>
+                                <label class="form-check-label" for="auto-categorize">
+                                    <i class="fas fa-magic me-1"></i>Auto-categorize transactions
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Auto-categorization:</strong> Transactions will be automatically categorized based on their descriptions using built-in keyword matching. Unmatched transactions will be categorized as "misc".
                     </div>
                 </div>
 
@@ -349,8 +347,8 @@ function importFile(file, index) {
     return new Promise((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('default_category', document.getElementById('default-category').value);
         formData.append('source', document.getElementById('source').value);
+        formData.append('auto_categorize', document.getElementById('auto-categorize').checked);
 
         fetch('/api/import', {
             method: 'POST',
@@ -422,3 +420,4 @@ function showImportResults(results) {
 }
 </script>
 {% endblock %}
+

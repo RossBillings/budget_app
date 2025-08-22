@@ -164,8 +164,17 @@ def create_app():
             file_path = os.path.join(upload_dir, file.filename)
             file.save(file_path)
             
-            # Import transactions
-            result = import_transactions_from_csv(file_path)
+            # Get import options
+            source = request.form.get('source', 'csv')
+            auto_categorize = request.form.get('auto_categorize', 'true').lower() == 'true'
+            
+            # Import transactions with auto-categorization
+            result = import_transactions_from_csv(
+                file_path, 
+                default_category="misc",  # Fallback for unmatched transactions
+                source=source,
+                auto_categorize=auto_categorize
+            )
             
             # Clean up uploaded file
             os.remove(file_path)

@@ -77,6 +77,7 @@ def import_transactions_from_csv(
     default_category: str = "misc",
     source: str = "csv",
     batch_size: int = 1000,
+    auto_categorize: bool = True,
 ) -> Dict[str, int]:
     """
     Import transactions from a CSV file into the database with deduplication.
@@ -108,8 +109,15 @@ def import_transactions_from_csv(
         
         for row_num, row in enumerate(reader, 1):
             try:
+                # Preprocess the CSV row to standardize format
+                processed_row = _preprocess_csv_row(row)
+                
+                # Skip excluded transactions
+                if _should_exclude_transaction(processed_row.get("Description", "")):
+                    continue
+                
                 # Create transaction from CSV row
-                txn = Transaction.from_csv_row(row, default_category=default_category)
+                txn = Transaction.from_csv_row(processed_row, default_category=default_category, auto_categorize=auto_categorize)
                 txn.source = source
                 batch.append(txn)
                 
@@ -138,6 +146,70 @@ def import_transactions_from_csv(
         f"Errors: {result['errors']}"
     )
     return result
+
+
+def _preprocess_csv_row(row: Dict[str, str]) -> Dict[str, str]:
+    """
+    Preprocess a CSV row to standardize format between Capital One and USAA.
+    
+    Args:
+        row: Raw CSV row dictionary
+        
+    Returns:
+        Dict with standardized keys: Transaction Date, Description, Amount
+    """
+    processed_row = {}
+    
+    # Handle Capital One format (has Debit/Credit columns)
+    if 'Debit' in row and 'Credit' in row:
+        # Use debit amount or negative credit amount
+        debit = row.get('Debit', '').strip()
+        credit = row.get('Credit', '').strip()
+        
+        if debit:
+            processed_row['Amount'] = debit
+        elif credit:
+            processed_row['Amount'] = f"-{credit}"
+        else:
+            processed_row['Amount'] = "0"
+            
+        processed_row['Transaction Date'] = row.get('Transaction Date', '').strip()
+        processed_row['Description'] = row.get('Description', '').strip()
+    
+    # Handle USAA format (has single Amount column)
+    elif 'Amount' in row:
+        try:
+            amount_val = float(row['Amount'])
+            # Invert the sign for USAA input (their format is opposite)
+            amount_val = -amount_val
+            processed_row['Amount'] = str(amount_val)
+        except ValueError:
+            processed_row['Amount'] = row['Amount']
+            
+        processed_row['Transaction Date'] = row.get('Date', '').strip()
+        processed_row['Description'] = row.get('Description', '').strip()
+    
+    # Handle already processed format
+    else:
+        processed_row['Transaction Date'] = row.get('Transaction Date', '').strip()
+        processed_row['Description'] = row.get('Description', '').strip()
+        processed_row['Amount'] = row.get('Amount', '0').strip()
+    
+    return processed_row
+
+
+def _should_exclude_transaction(description: str) -> bool:
+    """
+    Check if a transaction should be excluded from import.
+    
+    Args:
+        description: Transaction description
+        
+    Returns:
+        bool: True if transaction should be excluded
+    """
+    from .categorization import should_exclude
+    return should_exclude(description)
 
 
 def _process_batch(db: Session, batch: List[Transaction]) -> Dict[str, int]:
