@@ -1060,3 +1060,126 @@ def get_monthly_trends_data(
             'expenses': expenses,
             'income': income
         }
+
+
+def recategorize_existing_transactions() -> Dict[str, int]:
+    """
+    Re-categorize all existing transactions using current categorization rules.
+    
+    Returns:
+        Dict with counts of updated transactions
+    """
+    with get_db() as db:
+        # Get all transactions
+        transactions = db.query(Transaction).all()
+        
+        updated_count = 0
+        unchanged_count = 0
+        
+        for transaction in transactions:
+            # Skip transactions that start with '+' (manually categorized)
+            if transaction.description and transaction.description.startswith('+'):
+                unchanged_count += 1
+                continue
+            
+            # Get new category using current rules
+            from .categorization import categorize_transaction
+            new_category = categorize_transaction(
+                transaction.description, 
+                transaction.category, 
+                use_database=True
+            ).lower()
+            
+            # Update if category changed
+            if new_category != transaction.category:
+                transaction.category = new_category
+                updated_count += 1
+            else:
+                unchanged_count += 1
+        
+        db.commit()
+        
+        return {
+            'updated': updated_count,
+            'unchanged': unchanged_count,
+            'total': len(transactions)
+        }
+
+
+def import_budgets_from_csv(file_path: str) -> Dict[str, int]:
+    """
+    Import budget amounts from a CSV file.
+    
+    Args:
+        file_path: Path to the CSV file with Category,Amount columns
+        
+    Returns:
+        Dict with import results
+    """
+    import csv
+    
+    updated_count = 0
+    created_count = 0
+    error_count = 0
+    errors = []
+    
+    with get_db() as db:
+        try:
+            with open(file_path, 'r', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                
+                for row_num, row in enumerate(reader, 1):
+                    try:
+                        category_name = row.get('Category', '').strip()
+                        amount_str = row.get('Amount', '').strip()
+                        
+                        if not category_name or not amount_str:
+                            continue
+                        
+                        # Parse amount
+                        amount = float(amount_str.replace(',', ''))
+                        
+                        # Skip negative amounts or zero (except for categories that might legitimately be 0)
+                        if amount < 0:
+                            continue
+                        
+                        # Find existing category (case-insensitive)
+                        category = db.query(Category).filter(
+                            func.lower(Category.name) == category_name.lower()
+                        ).first()
+                        
+                        if category:
+                            # Update existing category budget
+                            category.monthly_budget = amount
+                            updated_count += 1
+                        else:
+                            # Create new category with budget
+                            category = Category(
+                                name=category_name,
+                                description=f"Imported from budget CSV",
+                                monthly_budget=amount,
+                                is_active="true"
+                            )
+                            db.add(category)
+                            created_count += 1
+                            
+                    except (ValueError, KeyError) as e:
+                        error_count += 1
+                        errors.append(f"Row {row_num}: {str(e)}")
+                        continue
+            
+            db.commit()
+            
+        except FileNotFoundError:
+            raise ValueError(f"Budget file not found: {file_path}")
+        except Exception as e:
+            db.rollback()
+            raise ValueError(f"Error reading budget file: {str(e)}")
+    
+    return {
+        'updated': updated_count,
+        'created': created_count,
+        'errors': error_count,
+        'error_details': errors,
+        'total_processed': updated_count + created_count + error_count
+    }

@@ -25,7 +25,9 @@ from ..core.database import (
     get_weekly_spending_data,
     get_category_budget_comparison,
     update_category_budget,
-    get_monthly_trends_data
+    get_monthly_trends_data,
+    recategorize_existing_transactions,
+    import_budgets_from_csv
 )
 
 def create_app():
@@ -391,6 +393,65 @@ def create_app():
                 
         except ValueError:
             return jsonify({'success': False, 'error': 'Invalid budget amount'}), 400
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # Re-categorization and Budget Import Endpoints
+    
+    @app.route('/api/transactions/recategorize', methods=['POST'])
+    def api_recategorize_transactions():
+        """Re-categorize all existing transactions using current rules."""
+        try:
+            result = recategorize_existing_transactions()
+            return jsonify({
+                'success': True, 
+                'message': f'Re-categorized {result["updated"]} transactions',
+                'data': result
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/budgets/import', methods=['POST'])
+    def api_import_budgets():
+        """Import budgets from CSV file."""
+        try:
+            if 'file' not in request.files:
+                return jsonify({'success': False, 'error': 'No file provided'}), 400
+            
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({'success': False, 'error': 'No file selected'}), 400
+            
+            if not file.filename.lower().endswith('.csv'):
+                return jsonify({'success': False, 'error': 'File must be a CSV'}), 400
+            
+            # Save uploaded file temporarily
+            import tempfile
+            import os
+            
+            with tempfile.NamedTemporaryFile(mode='w+b', suffix='.csv', delete=False) as tmp_file:
+                file.save(tmp_file.name)
+                tmp_file_path = tmp_file.name
+            
+            try:
+                # Import budgets
+                result = import_budgets_from_csv(tmp_file_path)
+                
+                message = f"Budget import complete: {result['updated']} updated, {result['created']} created"
+                if result['errors'] > 0:
+                    message += f", {result['errors']} errors"
+                
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'data': result
+                })
+                
+            finally:
+                # Clean up temporary file
+                if os.path.exists(tmp_file_path):
+                    os.unlink(tmp_file_path)
+                    
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
     

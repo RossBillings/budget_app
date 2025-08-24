@@ -9,9 +9,13 @@
         <div class="d-flex justify-content-between align-items-center">
             <h2><i class="fas fa-wallet me-2"></i>Budget Management</h2>
             <div class="d-flex gap-2">
+                <button class="btn btn-outline-success" onclick="document.getElementById('budgetFileInput').click()">
+                    <i class="fas fa-upload me-2"></i>Import CSV
+                </button>
                 <button class="btn btn-outline-primary" onclick="loadBudgetComparison()">
                     <i class="fas fa-sync me-2"></i>Refresh
                 </button>
+                <input type="file" id="budgetFileInput" accept=".csv" style="display: none;" onchange="importBudgetFile(this)">
             </div>
         </div>
         <p class="text-muted">Set monthly budgets for categories and track your spending against them.</p>
@@ -445,6 +449,61 @@ function saveBudget() {
     })
     .catch(error => {
         BudgetApp.showNotification('Error updating budget: ' + error.message, 'danger');
+    });
+}
+
+function importBudgetFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        BudgetApp.showNotification('Please select a CSV file', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    BudgetApp.showLoadingOverlay('Importing budget data...');
+    
+    fetch('/api/budgets/import', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        BudgetApp.hideLoadingOverlay();
+        if (data.success) {
+            BudgetApp.showNotification(data.message, 'success');
+            
+            // Show detailed results
+            const details = data.data;
+            const detailMessage = `
+                <strong>Budget Import Complete:</strong><br>
+                • Updated: ${details.updated} existing categories<br>
+                • Created: ${details.created} new categories<br>
+                ${details.errors > 0 ? `• Errors: ${details.errors} rows<br>` : ''}
+                • Total processed: ${details.total_processed} rows
+            `;
+            
+            // Create a more detailed notification
+            setTimeout(() => {
+                BudgetApp.showNotification(detailMessage, 'info', 8000);
+            }, 1000);
+            
+            // Refresh the budget data
+            loadBudgetComparison();
+        } else {
+            BudgetApp.showNotification('Error importing budgets: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        BudgetApp.hideLoadingOverlay();
+        BudgetApp.showNotification('Error importing budgets: ' + error.message, 'danger');
+    })
+    .finally(() => {
+        // Clear the file input
+        input.value = '';
     });
 }
 </script>

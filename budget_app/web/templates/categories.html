@@ -8,9 +8,14 @@
     <div class="col-12 mb-4">
         <div class="d-flex justify-content-between align-items-center">
             <h2><i class="fas fa-tags me-2"></i>Category Management</h2>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#categoryModal">
-                <i class="fas fa-plus me-2"></i>Add Category
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-warning" onclick="recategorizeTransactions()" title="Apply current keyword rules to all existing transactions">
+                    <i class="fas fa-sync me-2"></i>Re-categorize All
+                </button>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#categoryModal">
+                    <i class="fas fa-plus me-2"></i>Add Category
+                </button>
+            </div>
         </div>
         <p class="text-muted">Manage categories and keywords for automatic transaction categorization.</p>
     </div>
@@ -338,6 +343,45 @@ function resetModal() {
     document.getElementById('categoryModalTitle').textContent = 'Add Category';
     document.getElementById('categoryColor').value = '#6c757d';
     displayKeywords();
+}
+
+function recategorizeTransactions() {
+    if (!confirm('This will re-categorize ALL existing transactions using the current keyword rules. This may take a few moments and cannot be undone. Continue?')) {
+        return;
+    }
+    
+    BudgetApp.showLoadingOverlay('Re-categorizing transactions...');
+    
+    fetch('/api/transactions/recategorize', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        BudgetApp.hideLoadingOverlay();
+        if (data.success) {
+            BudgetApp.showNotification(data.message, 'success');
+            
+            // Show detailed results
+            const details = data.data;
+            const detailMessage = `
+                <strong>Re-categorization Complete:</strong><br>
+                • Updated: ${details.updated} transactions<br>
+                • Unchanged: ${details.unchanged} transactions<br>
+                • Total processed: ${details.total} transactions
+            `;
+            
+            // Create a more detailed notification
+            setTimeout(() => {
+                BudgetApp.showNotification(detailMessage, 'info', 8000);
+            }, 1000);
+        } else {
+            BudgetApp.showNotification('Error re-categorizing transactions: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        BudgetApp.hideLoadingOverlay();
+        BudgetApp.showNotification('Error re-categorizing transactions: ' + error.message, 'danger');
+    });
 }
 </script>
 {% endblock %}
