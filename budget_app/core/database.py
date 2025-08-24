@@ -1069,41 +1069,81 @@ def recategorize_existing_transactions() -> Dict[str, int]:
     Returns:
         Dict with counts of updated transactions
     """
+    # First, get the keyword map outside of any transaction context
+    keyword_map = get_category_keywords_map()
+    
     with get_db() as db:
-        # Get all transactions
-        transactions = db.query(Transaction).all()
+        # Get all transaction data as simple tuples to avoid session issues
+        transaction_data = db.query(
+            Transaction.id,
+            Transaction.description,
+            Transaction.category
+        ).all()
         
         updated_count = 0
         unchanged_count = 0
+        total_count = len(transaction_data)
         
-        for transaction in transactions:
+        # Process each transaction
+        for trans_id, description, current_category in transaction_data:
             # Skip transactions that start with '+' (manually categorized)
-            if transaction.description and transaction.description.startswith('+'):
+            if description and description.startswith('+'):
                 unchanged_count += 1
                 continue
             
-            # Get new category using current rules
-            from .categorization import categorize_transaction
-            new_category = categorize_transaction(
-                transaction.description, 
-                transaction.category, 
-                use_database=True
-            ).lower()
+            # Clean up values
+            description = description or ""
+            current_category = current_category or ""
+            
+            # Get new category using keyword map (avoid database calls)
+            new_category = _categorize_with_keyword_map(description, keyword_map)
             
             # Update if category changed
-            if new_category != transaction.category:
-                transaction.category = new_category
+            if new_category != current_category.lower():
+                # Update the transaction in the database directly
+                db.query(Transaction).filter(
+                    Transaction.id == trans_id
+                ).update({
+                    'category': new_category
+                })
                 updated_count += 1
             else:
                 unchanged_count += 1
         
+        # Commit all changes at once
         db.commit()
         
         return {
             'updated': updated_count,
             'unchanged': unchanged_count,
-            'total': len(transactions)
+            'total': total_count
         }
+
+
+def _categorize_with_keyword_map(description: str, keyword_map: Dict[str, str]) -> str:
+    """
+    Categorize a transaction using a pre-loaded keyword map.
+    
+    Args:
+        description: Transaction description
+        keyword_map: Dictionary mapping keywords to category names
+        
+    Returns:
+        Category name (lowercase)
+    """
+    if not description:
+        return "misc"
+    
+    description_clean = description.lower().strip()
+    
+    # Check keywords in priority order (already sorted by priority in the map)
+    for keyword, category_name in keyword_map.items():
+        if keyword in description_clean:
+            return category_name.lower()
+    
+    # Fallback to hardcoded categorization if no database keywords match
+    from .categorization import _categorize_with_hardcoded_keywords
+    return _categorize_with_hardcoded_keywords(description_clean)
 
 
 def import_budgets_from_csv(file_path: str) -> Dict[str, int]:
