@@ -491,5 +491,6 @@ window.BudgetApp = {
     getUrlParams,
     updateUrlParams,
     isInViewport,
-    setupLazyLoading
+    setupLazyLoading,
+    setupTooltips
 };
