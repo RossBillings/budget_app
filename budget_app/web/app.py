@@ -21,7 +21,8 @@ from ..core.database import (
     create_category,
     update_category,
     delete_category,
-    get_spending_patterns
+    get_spending_patterns,
+    get_weekly_spending_data
 )
 
 def create_app():
@@ -160,6 +161,22 @@ def create_app():
             end_date = request.args.get('end_date')
             
             data = get_spending_patterns(start_date, end_date)
+            return jsonify({'success': True, 'data': data})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/spending/weekly')
+    def api_weekly_spending():
+        """Get weekly spending data."""
+        try:
+            start_date = request.args.get('start_date')
+            end_date = request.args.get('end_date')
+            category = request.args.get('category', 'all')
+            
+            if category == 'all':
+                category = None
+            
+            data = get_weekly_spending_data(start_date, end_date, category)
             return jsonify({'success': True, 'data': data})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500

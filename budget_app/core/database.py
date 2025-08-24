@@ -8,7 +8,7 @@ This module provides:
 - Query helpers for common operations
 """
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 import logging
 
@@ -832,3 +832,64 @@ def get_category_keywords_map() -> Dict[str, str]:
             keyword_map[keyword_obj.keyword.lower()] = category.name
         
         return keyword_map
+
+
+def get_weekly_spending_data(
+    start_date: Optional[Union[date, str]] = None,
+    end_date: Optional[Union[date, str]] = None,
+    category: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Get weekly spending data for the specified date range.
+    
+    Args:
+        start_date: Optional start date filter
+        end_date: Optional end date filter
+        category: Optional category filter
+        
+    Returns:
+        List of weekly spending data
+    """
+    with get_db() as db:
+        # Base query
+        base_query = db.query(Transaction)
+        
+        # Apply filters
+        if start_date:
+            if isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            base_query = base_query.filter(Transaction.transaction_date >= start_date)
+        if end_date:
+            if isinstance(end_date, str):
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            base_query = base_query.filter(Transaction.transaction_date <= end_date)
+        if category and category != 'all':
+            base_query = base_query.filter(Transaction.category == category)
+        
+        # Only positive amounts (expenses)
+        base_query = base_query.filter(Transaction.amount > 0)
+        
+        # Group by week using SQLite's date functions
+        weekly_query = base_query.with_entities(
+            func.strftime('%Y-W%W', Transaction.transaction_date).label('week'),
+            func.sum(Transaction.amount).label('total'),
+            func.min(Transaction.transaction_date).label('week_start')
+        ).group_by(func.strftime('%Y-W%W', Transaction.transaction_date)).order_by('week_start')
+        
+        results = weekly_query.all()
+        
+        weekly_data = []
+        for result in results:
+            # Format week label
+            week_start = result.week_start
+            week_end = week_start + timedelta(days=6)
+            week_label = f"{week_start.strftime('%m/%d')} - {week_end.strftime('%m/%d')}"
+            
+            weekly_data.append({
+                'week': result.week,
+                'week_label': week_label,
+                'total': float(result.total) if result.total else 0.0,
+                'week_start': result.week_start.isoformat() if result.week_start else None
+            })
+        
+        return weekly_data

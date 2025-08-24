@@ -205,13 +205,20 @@ let currentTransactionOffset = 0;
 let allTransactions = [];
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Set default date range to previous full month
-    setDefaultDateRange();
+    // Initialize global filters
+    BudgetApp.initializeGlobalFilters();
+    BudgetApp.applyGlobalFiltersToPage();
     
     // Initialize dashboard
     loadDashboardData();
     setupEventListeners();
     setupCharts();
+    
+    // Listen for global filter changes from other pages
+    window.addEventListener('globalFiltersChanged', function(event) {
+        BudgetApp.applyGlobalFiltersToPage();
+        loadDashboardData();
+    });
 });
 
 function setDefaultDateRange() {
@@ -383,6 +390,9 @@ function handleDateRangeChange() {
     const startDate = document.getElementById('start-date');
     const endDate = document.getElementById('end-date');
     
+    // Update global filter
+    BudgetApp.setGlobalFilter('dateRange', range);
+    
     if (range === 'custom') {
         startDate.disabled = false;
         endDate.disabled = false;
@@ -391,17 +401,30 @@ function handleDateRangeChange() {
         endDate.disabled = true;
         
         const now = new Date();
+        let startDateValue, endDateValue;
+        
         if (range === 'this-month') {
-            startDate.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-            endDate.value = now.toISOString().split('T')[0];
+            startDateValue = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            endDateValue = now.toISOString().split('T')[0];
         } else if (range === 'last-month') {
-            startDate.value = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
-            endDate.value = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+            startDateValue = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+            endDateValue = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
         } else if (range === 'this-year') {
-            startDate.value = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-            endDate.value = now.toISOString().split('T')[0];
+            startDateValue = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+            endDateValue = now.toISOString().split('T')[0];
         }
+        
+        startDate.value = startDateValue;
+        endDate.value = endDateValue;
+        
+        // Update global filters
+        BudgetApp.setGlobalFilter('startDate', startDateValue);
+        BudgetApp.setGlobalFilter('endDate', endDateValue);
     }
+    
+    // Reload data
+    loadSummaryData();
+    loadTransactions();
 }
 
 function loadMoreTransactions() {

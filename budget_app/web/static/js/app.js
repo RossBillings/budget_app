@@ -286,6 +286,83 @@ function setCurrentPage(page) {
 }
 
 /**
+ * Global filter management
+ */
+const globalFilters = {
+    dateRange: 'last-month',
+    startDate: null,
+    endDate: null,
+    category: 'all'
+};
+
+function setGlobalFilter(key, value) {
+    globalFilters[key] = value;
+    // Save to localStorage for persistence
+    localStorage.setItem('budgetApp_globalFilters', JSON.stringify(globalFilters));
+    
+    // Trigger update event for listening pages
+    window.dispatchEvent(new CustomEvent('globalFiltersChanged', { 
+        detail: globalFilters 
+    }));
+}
+
+function getGlobalFilters() {
+    // Load from localStorage if available
+    const saved = localStorage.getItem('budgetApp_globalFilters');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            Object.assign(globalFilters, parsed);
+        } catch (e) {
+            console.warn('Failed to parse saved filters:', e);
+        }
+    }
+    return { ...globalFilters };
+}
+
+function initializeGlobalFilters() {
+    const filters = getGlobalFilters();
+    
+    // Set default dates if not already set
+    if (!filters.startDate || !filters.endDate) {
+        const today = new Date();
+        const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+        
+        setGlobalFilter('startDate', startDate.toISOString().split('T')[0]);
+        setGlobalFilter('endDate', endDate.toISOString().split('T')[0]);
+    }
+    
+    return getGlobalFilters();
+}
+
+function applyGlobalFiltersToPage() {
+    const filters = getGlobalFilters();
+    
+    // Apply to date range dropdown if it exists
+    const dateRangeSelect = document.getElementById('date-range');
+    if (dateRangeSelect) {
+        dateRangeSelect.value = filters.dateRange;
+    }
+    
+    // Apply to date inputs if they exist
+    const startDateInput = document.getElementById('start-date');
+    const endDateInput = document.getElementById('end-date');
+    if (startDateInput && filters.startDate) {
+        startDateInput.value = filters.startDate;
+    }
+    if (endDateInput && filters.endDate) {
+        endDateInput.value = filters.endDate;
+    }
+    
+    // Apply to category filter if it exists
+    const categorySelect = document.getElementById('category-filter');
+    if (categorySelect && filters.category) {
+        categorySelect.value = filters.category;
+    }
+}
+
+/**
  * Show loading overlay
  */
 function showLoadingOverlay(message = 'Loading...') {
@@ -492,5 +569,9 @@ window.BudgetApp = {
     updateUrlParams,
     isInViewport,
     setupLazyLoading,
-    setupTooltips
+    setupTooltips,
+    setGlobalFilter,
+    getGlobalFilters,
+    initializeGlobalFilters,
+    applyGlobalFiltersToPage
 };

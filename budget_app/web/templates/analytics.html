@@ -209,11 +209,21 @@ let weeklyTrendChart = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     BudgetApp.setCurrentPage('analytics');
+    
+    // Initialize global filters
+    BudgetApp.initializeGlobalFilters();
+    BudgetApp.applyGlobalFiltersToPage();
+    
     setupCharts();
-    setDefaultDateRange();
     loadCategories();
     loadAnalytics();
     setupEventListeners();
+    
+    // Listen for global filter changes from other pages
+    window.addEventListener('globalFiltersChanged', function(event) {
+        BudgetApp.applyGlobalFiltersToPage();
+        loadAnalytics();
+    });
 });
 
 function setupEventListeners() {
@@ -242,6 +252,9 @@ function handleDateRangeChange() {
     const dateRange = document.getElementById('date-range').value;
     const startDateInput = document.getElementById('start-date');
     const endDateInput = document.getElementById('end-date');
+    
+    // Update global filter
+    BudgetApp.setGlobalFilter('dateRange', dateRange);
     
     const today = new Date();
     let startDate, endDate;
@@ -280,8 +293,15 @@ function handleDateRangeChange() {
             endDate = new Date(today.getFullYear(), today.getMonth(), 0);
     }
     
-    startDateInput.value = startDate.toISOString().split('T')[0];
-    endDateInput.value = endDate.toISOString().split('T')[0];
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    
+    startDateInput.value = startDateStr;
+    endDateInput.value = endDateStr;
+    
+    // Update global filters
+    BudgetApp.setGlobalFilter('startDate', startDateStr);
+    BudgetApp.setGlobalFilter('endDate', endDateStr);
     
     // Auto-load analytics when timeframe changes
     loadAnalytics();
@@ -688,59 +708,35 @@ function updateWeeklyTrendChart() {
         end_date: document.getElementById('end-date').value
     });
     
-    fetch(`/api/expenses/aggregated?${params}`)
+    fetch(`/api/spending/weekly?${params}`)
         .then(response => response.json())
         .then(result => {
             if (result.success) {
                 const data = result.data;
                 
-                // Process data for weekly trends
-                let weeklyData = [];
-                let weeklyLabels = [];
-                
-                if (Array.isArray(data) && data.length > 0) {
-                    // Group data by week
-                    const startDate = new Date(document.getElementById('start-date').value);
-                    const endDate = new Date(document.getElementById('end-date').value);
-                    const weekMap = new Map();
-                    
-                    // Process aggregated data to create weekly totals
-                    data.forEach(category => {
-                        if (category.data) {
-                            category.data.forEach(item => {
-                                const date = new Date(item.month + '-01');
-                                const weekKey = getWeekKey(date);
-                                
-                                if (!weekMap.has(weekKey)) {
-                                    weekMap.set(weekKey, 0);
-                                }
-                                weekMap.set(weekKey, weekMap.get(weekKey) + Math.abs(item.total));
-                            });
-                        }
-                    });
-                    
-                    // Convert to arrays for chart
-                    const sortedWeeks = Array.from(weekMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-                    weeklyLabels = sortedWeeks.map(([week, _]) => week);
-                    weeklyData = sortedWeeks.map(([_, total]) => total);
-                }
+                // Extract labels and data for chart
+                const weeklyLabels = data.map(item => item.week_label);
+                const weeklyData = data.map(item => item.total);
                 
                 // Update chart
                 weeklyTrendChart.data.labels = weeklyLabels;
                 weeklyTrendChart.data.datasets[0].data = weeklyData;
                 weeklyTrendChart.update();
+            } else {
+                console.error('Failed to load weekly trend data:', result.error);
+                // Clear chart on error
+                weeklyTrendChart.data.labels = [];
+                weeklyTrendChart.data.datasets[0].data = [];
+                weeklyTrendChart.update();
             }
         })
         .catch(error => {
             console.error('Error loading weekly trend data:', error);
+            // Clear chart on error
+            weeklyTrendChart.data.labels = [];
+            weeklyTrendChart.data.datasets[0].data = [];
+            weeklyTrendChart.update();
         });
-}
-
-function getWeekKey(date) {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const week = Math.ceil(date.getDate() / 7);
-    return `${year}-${month.toString().padStart(2, '0')}-W${week}`;
 }
 </script>
 {% endblock %}
