@@ -20,7 +20,8 @@ from ..core.database import (
     get_all_categories,
     create_category,
     update_category,
-    delete_category
+    delete_category,
+    get_spending_patterns
 )
 
 def create_app():
@@ -148,6 +149,18 @@ def create_app():
             
             return jsonify({'success': True, 'data': aggregated_data})
             
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/spending/patterns')
+    def api_spending_patterns():
+        """Get spending patterns data."""
+        try:
+            start_date = request.args.get('start_date')
+            end_date = request.args.get('end_date')
+            
+            data = get_spending_patterns(start_date, end_date)
+            return jsonify({'success': True, 'data': data})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
     

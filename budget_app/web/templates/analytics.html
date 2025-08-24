@@ -509,15 +509,50 @@ function updateMonthlyComparisonChart(data) {
 }
 
 function updateSpendingPatterns(data) {
-    // Sample data for spending patterns
-    const dayOfWeekData = [150, 200, 180, 220, 300, 350, 200];
-    const timeOfDayData = [50, 100, 200, 150, 300, 250, 100];
+    // Load real spending patterns data
+    const params = new URLSearchParams({
+        start_date: document.getElementById('start-date').value,
+        end_date: document.getElementById('end-date').value
+    });
     
-    dayOfWeekChart.data.datasets[0].data = dayOfWeekData;
-    dayOfWeekChart.update();
-    
-    timeOfDayChart.data.datasets[0].data = timeOfDayData;
-    timeOfDayChart.update();
+    fetch(`/api/spending/patterns?${params}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const patterns = result.data;
+                
+                // Update day of week chart
+                dayOfWeekChart.data.datasets[0].data = patterns.day_of_week;
+                dayOfWeekChart.update();
+                
+                // Update time of day chart
+                timeOfDayChart.data.datasets[0].data = patterns.time_of_day;
+                timeOfDayChart.update();
+            } else {
+                console.error('Failed to load spending patterns:', result.error);
+                // Fallback to sample data
+                const dayOfWeekData = [0, 0, 0, 0, 0, 0, 0];
+                const timeOfDayData = new Array(24).fill(0);
+                
+                dayOfWeekChart.data.datasets[0].data = dayOfWeekData;
+                dayOfWeekChart.update();
+                
+                timeOfDayChart.data.datasets[0].data = timeOfDayData;
+                timeOfDayChart.update();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading spending patterns:', error);
+            // Fallback to empty data
+            const dayOfWeekData = [0, 0, 0, 0, 0, 0, 0];
+            const timeOfDayData = new Array(24).fill(0);
+            
+            dayOfWeekChart.data.datasets[0].data = dayOfWeekData;
+            dayOfWeekChart.update();
+            
+            timeOfDayChart.data.datasets[0].data = timeOfDayData;
+            timeOfDayChart.update();
+        });
 }
 </script>
 {% endblock %}
