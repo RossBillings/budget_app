@@ -158,15 +158,15 @@
         </div>
     </div>
 
-    <!-- Monthly Comparison -->
+    <!-- Budget vs Spending -->
     <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i>Monthly Comparison</h5>
+                <h5 class="mb-0"><i class="fas fa-wallet me-2"></i>Budget vs Spending</h5>
             </div>
             <div class="card-body">
-                <div style="height: 300px; position: relative;">
-                    <canvas id="monthly-comparison-chart"></canvas>
+                <div id="budget-comparison-list">
+                    <!-- Budget comparison will be populated here -->
                 </div>
             </div>
         </div>
@@ -379,7 +379,7 @@ function updateAnalytics(data) {
     updateMonthlyTrendsChart(data);
     updateCategoryBreakdownChart(data);
     updateTopCategories(data);
-    updateMonthlyComparisonChart(data);
+    updateBudgetComparison(data);
     updateSpendingPatterns(data);
 }
 
@@ -600,16 +600,40 @@ function setupCharts() {
 }
 
 function updateMonthlyTrendsChart(data) {
-    // This would need to be implemented based on your actual data structure
-    // For now, we'll create sample data
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    const expenses = [1200, 1400, 1100, 1600, 1300, 1500];
-    const income = [2000, 2200, 2000, 2400, 2100, 2300];
+    // Load real monthly trends data
+    const params = new URLSearchParams({
+        category: document.getElementById('category-filter').value,
+        start_date: document.getElementById('start-date').value,
+        end_date: document.getElementById('end-date').value
+    });
     
-    monthlyTrendsChart.data.labels = months;
-    monthlyTrendsChart.data.datasets[0].data = expenses;
-    monthlyTrendsChart.data.datasets[1].data = income;
-    monthlyTrendsChart.update();
+    fetch(`/api/trends/monthly?${params}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const trendsData = result.data;
+                
+                monthlyTrendsChart.data.labels = trendsData.months;
+                monthlyTrendsChart.data.datasets[0].data = trendsData.expenses;
+                monthlyTrendsChart.data.datasets[1].data = trendsData.income;
+                monthlyTrendsChart.update();
+            } else {
+                console.error('Failed to load monthly trends:', result.error);
+                // Clear chart on error
+                monthlyTrendsChart.data.labels = [];
+                monthlyTrendsChart.data.datasets[0].data = [];
+                monthlyTrendsChart.data.datasets[1].data = [];
+                monthlyTrendsChart.update();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading monthly trends:', error);
+            // Clear chart on error
+            monthlyTrendsChart.data.labels = [];
+            monthlyTrendsChart.data.datasets[0].data = [];
+            monthlyTrendsChart.data.datasets[1].data = [];
+            monthlyTrendsChart.update();
+        });
 }
 
 function updateCategoryBreakdownChart(data) {
@@ -737,6 +761,114 @@ function updateWeeklyTrendChart() {
             weeklyTrendChart.data.datasets[0].data = [];
             weeklyTrendChart.update();
         });
+}
+
+function updateBudgetComparison(data) {
+    const params = new URLSearchParams({
+        start_date: document.getElementById('start-date').value,
+        end_date: document.getElementById('end-date').value
+    });
+    
+    fetch(`/api/budgets/comparison?${params}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                displayBudgetComparison(result.data);
+            } else {
+                console.error('Failed to load budget comparison:', result.error);
+                displayBudgetComparison([]);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading budget comparison:', error);
+            displayBudgetComparison([]);
+        });
+}
+
+function displayBudgetComparison(budgetData) {
+    const container = document.getElementById('budget-comparison-list');
+    
+    if (!budgetData || budgetData.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-wallet fa-2x text-muted mb-2"></i>
+                <p class="text-muted mb-2">No budget data available</p>
+                <a href="/budgets" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i>Set Budgets
+                </a>
+            </div>
+        `;
+        return;
+    }
+    
+    // Show top 5 categories by spending
+    const topCategories = budgetData.slice(0, 5);
+    
+    container.innerHTML = topCategories.map(item => {
+        const progressPercentage = Math.min(item.percentage, 100);
+        const progressBarClass = getProgressBarClass(item.status);
+        const statusText = getStatusText(item.status);
+        
+        return `
+            <div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center mb-1">
+                        <div class="me-2" style="width: 8px; height: 8px; background-color: ${item.color}; border-radius: 50%;"></div>
+                        <strong class="me-2">${item.category_name}</strong>
+                        <span class="badge ${getStatusBadgeClass(item.status)} badge-sm">${statusText}</span>
+                    </div>
+                    <div class="progress mb-1" style="height: 8px;">
+                        <div class="progress-bar ${progressBarClass}" style="width: ${progressPercentage}%"></div>
+                    </div>
+                    <small class="text-muted">
+                        ${BudgetApp.formatCurrency(item.total_spent)} / ${BudgetApp.formatCurrency(item.period_budget)}
+                        ${item.remaining >= 0 ? 
+                            `(${BudgetApp.formatCurrency(item.remaining)} left)` : 
+                            `(${BudgetApp.formatCurrency(Math.abs(item.remaining))} over)`
+                        }
+                    </small>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Add link to full budget page
+    container.innerHTML += `
+        <div class="text-center mt-3">
+            <a href="/budgets" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-chart-bar me-1"></i>View All Budgets
+            </a>
+        </div>
+    `;
+}
+
+function getProgressBarClass(status) {
+    switch(status) {
+        case 'under': return 'bg-success';
+        case 'near': return 'bg-warning';
+        case 'over': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function getStatusBadgeClass(status) {
+    switch(status) {
+        case 'under': return 'bg-success';
+        case 'near': return 'bg-warning';
+        case 'over': return 'bg-danger';
+        case 'no_budget': return 'bg-secondary';
+        default: return 'bg-secondary';
+    }
+}
+
+function getStatusText(status) {
+    switch(status) {
+        case 'under': return 'Under';
+        case 'near': return 'Near';
+        case 'over': return 'Over';
+        case 'no_budget': return 'No Budget';
+        default: return 'Unknown';
+    }
 }
 </script>
 {% endblock %}

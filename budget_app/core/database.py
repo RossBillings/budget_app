@@ -893,3 +893,170 @@ def get_weekly_spending_data(
             })
         
         return weekly_data
+
+
+def get_category_budget_comparison(
+    start_date: Optional[Union[date, str]] = None,
+    end_date: Optional[Union[date, str]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Get category spending vs budget comparison.
+    
+    Args:
+        start_date: Optional start date filter
+        end_date: Optional end date filter
+        
+    Returns:
+        List of category budget comparison data
+    """
+    with get_db() as db:
+        # Get all active categories with budgets
+        categories = db.query(Category).filter(Category.is_active == "true").all()
+        
+        # Calculate date range for budget calculation
+        if start_date:
+            if isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        if end_date:
+            if isinstance(end_date, str):
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        # Calculate number of months in the period for budget scaling
+        if start_date and end_date:
+            months_in_period = ((end_date.year - start_date.year) * 12 + 
+                              (end_date.month - start_date.month) + 1)
+        else:
+            months_in_period = 1
+        
+        comparison_data = []
+        
+        for category in categories:
+            # Get spending for this category in the date range
+            spending_query = db.query(func.sum(Transaction.amount)).filter(
+                Transaction.category == category.name.lower(),
+                Transaction.amount > 0  # Only expenses
+            )
+            
+            if start_date:
+                spending_query = spending_query.filter(Transaction.transaction_date >= start_date)
+            if end_date:
+                spending_query = spending_query.filter(Transaction.transaction_date <= end_date)
+            
+            total_spent = spending_query.scalar() or 0.0
+            
+            # Calculate budget for the period
+            monthly_budget = category.monthly_budget or 0.0
+            period_budget = monthly_budget * months_in_period
+            
+            # Calculate percentage and status
+            if period_budget > 0:
+                percentage = (total_spent / period_budget) * 100
+                if percentage <= 80:
+                    status = "under"
+                elif percentage <= 100:
+                    status = "near"
+                else:
+                    status = "over"
+            else:
+                percentage = 0
+                status = "no_budget"
+            
+            comparison_data.append({
+                'category_id': category.id,
+                'category_name': category.name,
+                'color': category.color,
+                'total_spent': float(total_spent),
+                'monthly_budget': float(monthly_budget),
+                'period_budget': float(period_budget),
+                'percentage': float(percentage),
+                'remaining': float(period_budget - total_spent),
+                'status': status,
+                'months_in_period': months_in_period
+            })
+        
+        # Sort by spending amount (highest first)
+        comparison_data.sort(key=lambda x: x['total_spent'], reverse=True)
+        
+        return comparison_data
+
+
+def update_category_budget(category_id: str, monthly_budget: float) -> bool:
+    """
+    Update the monthly budget for a category.
+    
+    Args:
+        category_id: Category ID to update
+        monthly_budget: New monthly budget amount
+        
+    Returns:
+        bool: True if updated successfully
+    """
+    with get_db() as db:
+        category = db.query(Category).filter(Category.id == category_id).first()
+        if not category:
+            return False
+        
+        category.monthly_budget = monthly_budget
+        db.commit()
+        return True
+
+
+def get_monthly_trends_data(
+    start_date: Optional[Union[date, str]] = None,
+    end_date: Optional[Union[date, str]] = None,
+    category: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Get monthly trends data showing expenses and income over time.
+    
+    Args:
+        start_date: Optional start date filter
+        end_date: Optional end date filter
+        category: Optional category filter
+        
+    Returns:
+        Dict with monthly trends data
+    """
+    with get_db() as db:
+        # Base query
+        base_query = db.query(Transaction)
+        
+        # Apply filters
+        if start_date:
+            if isinstance(start_date, str):
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            base_query = base_query.filter(Transaction.transaction_date >= start_date)
+        if end_date:
+            if isinstance(end_date, str):
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            base_query = base_query.filter(Transaction.transaction_date <= end_date)
+        if category and category != 'all':
+            base_query = base_query.filter(Transaction.category == category)
+        
+        # Group by month and separate expenses/income
+        monthly_query = base_query.with_entities(
+            func.strftime('%Y-%m', Transaction.transaction_date).label('month'),
+            func.sum(func.case([(Transaction.amount > 0, Transaction.amount)], else_=0)).label('expenses'),
+            func.sum(func.case([(Transaction.amount < 0, func.abs(Transaction.amount))], else_=0)).label('income')
+        ).group_by(func.strftime('%Y-%m', Transaction.transaction_date)).order_by('month')
+        
+        results = monthly_query.all()
+        
+        months = []
+        expenses = []
+        income = []
+        
+        for result in results:
+            # Format month label
+            month_date = datetime.strptime(result.month + '-01', '%Y-%m-%d')
+            month_label = month_date.strftime('%b %Y')
+            
+            months.append(month_label)
+            expenses.append(float(result.expenses) if result.expenses else 0.0)
+            income.append(float(result.income) if result.income else 0.0)
+        
+        return {
+            'months': months,
+            'expenses': expenses,
+            'income': income
+        }

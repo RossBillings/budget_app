@@ -173,6 +173,8 @@ class Category(Base):
     color = Column(String(7), default="#6c757d")  # Hex color code
     is_active = Column(String(5), default="true")  # SQLite doesn't have boolean
     created_at = Column(Date, default=date.today)
+    monthly_budget = Column(Float, default=0.0)  # Monthly budget amount
+    budget_period = Column(String(20), default="monthly")  # monthly, yearly, etc.
     
     # Relationship to keywords
     keywords = relationship("CategoryKeyword", back_populates="category", cascade="all, delete-orphan")

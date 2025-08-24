@@ -22,7 +22,10 @@ from ..core.database import (
     update_category,
     delete_category,
     get_spending_patterns,
-    get_weekly_spending_data
+    get_weekly_spending_data,
+    get_category_budget_comparison,
+    update_category_budget,
+    get_monthly_trends_data
 )
 
 def create_app():
@@ -181,6 +184,22 @@ def create_app():
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
     
+    @app.route('/api/trends/monthly')
+    def api_monthly_trends():
+        """Get monthly trends data."""
+        try:
+            start_date = request.args.get('start_date')
+            end_date = request.args.get('end_date')
+            category = request.args.get('category', 'all')
+            
+            if category == 'all':
+                category = None
+            
+            data = get_monthly_trends_data(start_date, end_date, category)
+            return jsonify({'success': True, 'data': data})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
     @app.route('/api/import', methods=['POST'])
     def api_import():
         """Import transactions from CSV."""
@@ -264,6 +283,11 @@ def create_app():
         """Categories management page."""
         return render_template('categories.html')
     
+    @app.route('/budgets')
+    def budgets_page():
+        """Budget management page."""
+        return render_template('budgets.html')
+    
     # Category Management API Endpoints
     
     @app.route('/api/categories/manage')
@@ -330,6 +354,43 @@ def create_app():
             else:
                 return jsonify({'success': False, 'error': 'Category not found'}), 404
                 
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # Budget Management API Endpoints
+    
+    @app.route('/api/budgets/comparison')
+    def api_budget_comparison():
+        """Get category spending vs budget comparison."""
+        try:
+            start_date = request.args.get('start_date')
+            end_date = request.args.get('end_date')
+            
+            data = get_category_budget_comparison(start_date, end_date)
+            return jsonify({'success': True, 'data': data})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/budgets/<category_id>', methods=['PUT'])
+    def api_update_budget(category_id):
+        """Update category budget."""
+        try:
+            data = request.get_json()
+            if not data or 'monthly_budget' not in data:
+                return jsonify({'success': False, 'error': 'Monthly budget amount is required'}), 400
+            
+            monthly_budget = float(data['monthly_budget'])
+            if monthly_budget < 0:
+                return jsonify({'success': False, 'error': 'Budget amount cannot be negative'}), 400
+            
+            success = update_category_budget(category_id, monthly_budget)
+            if success:
+                return jsonify({'success': True, 'message': 'Budget updated successfully'})
+            else:
+                return jsonify({'success': False, 'error': 'Category not found'}), 404
+                
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Invalid budget amount'}), 400
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
     
