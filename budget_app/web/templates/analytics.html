@@ -12,23 +12,38 @@
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="category-filter" class="form-label">Category</label>
                         <select class="form-select" id="category-filter">
                             <option value="all">All Categories</option>
                         </select>
                     </div>
                     <div class="col-md-3">
+                        <label for="date-range" class="form-label">Time Frame</label>
+                        <select class="form-select" id="date-range">
+                            <option value="this-month">This Month</option>
+                            <option value="last-month">Last Month</option>
+                            <option value="last-3-months">Last 3 Months</option>
+                            <option value="last-6-months">Last 6 Months</option>
+                            <option value="this-year">This Year</option>
+                            <option value="last-year">Last Year</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <label for="start-date" class="form-label">Start Date</label>
                         <input type="date" class="form-control" id="start-date">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="end-date" class="form-label">End Date</label>
                         <input type="date" class="form-control" id="end-date">
                     </div>
-                    <div class="col-md-3 d-flex align-items-end">
+                    <div class="col-md-3 d-flex align-items-end gap-2">
                         <button class="btn btn-primary" id="apply-filters">
-                            <i class="fas fa-search me-2"></i>Apply Filters
+                            <i class="fas fa-sync me-2"></i>Update Analytics
+                        </button>
+                        <button class="btn btn-outline-secondary" id="reset-filters">
+                            <i class="fas fa-undo me-2"></i>Reset
                         </button>
                     </div>
                 </div>
@@ -161,7 +176,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Spending Patterns</h5>
+                <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i>Spending Patterns</h5>
             </div>
             <div class="card-body">
                 <div class="row">
@@ -172,9 +187,9 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <h6>Time of Day Spending</h6>
+                        <h6>Weekly Spending Trend</h6>
                         <div style="height: 300px; position: relative;">
-                            <canvas id="time-of-day-chart"></canvas>
+                            <canvas id="weekly-trend-chart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -190,20 +205,96 @@ let monthlyTrendsChart = null;
 let categoryBreakdownChart = null;
 let monthlyComparisonChart = null;
 let dayOfWeekChart = null;
-let timeOfDayChart = null;
+let weeklyTrendChart = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     BudgetApp.setCurrentPage('analytics');
+    setupCharts();
+    setDefaultDateRange();
     loadCategories();
     loadAnalytics();
     setupEventListeners();
-    setupCharts();
 });
 
 function setupEventListeners() {
-    document.getElementById('apply-filters').addEventListener('click', loadAnalytics);
+    // Date range dropdown change
+    document.getElementById('date-range').addEventListener('change', function() {
+        handleDateRangeChange();
+    });
     
-    // Set default date range to last 12 months
+    // Apply filters button
+    document.getElementById('apply-filters').addEventListener('click', function() {
+        loadAnalytics();
+    });
+    
+    // Reset filters button
+    document.getElementById('reset-filters').addEventListener('click', function() {
+        resetFilters();
+    });
+    
+    // Category filter change
+    document.getElementById('category-filter').addEventListener('change', function() {
+        loadAnalytics();
+    });
+}
+
+function handleDateRangeChange() {
+    const dateRange = document.getElementById('date-range').value;
+    const startDateInput = document.getElementById('start-date');
+    const endDateInput = document.getElementById('end-date');
+    
+    const today = new Date();
+    let startDate, endDate;
+    
+    switch(dateRange) {
+        case 'this-month':
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            break;
+        case 'last-month':
+            startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+            break;
+        case 'last-3-months':
+            startDate = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+            endDate = today;
+            break;
+        case 'last-6-months':
+            startDate = new Date(today.getFullYear(), today.getMonth() - 6, 1);
+            endDate = today;
+            break;
+        case 'this-year':
+            startDate = new Date(today.getFullYear(), 0, 1);
+            endDate = today;
+            break;
+        case 'last-year':
+            startDate = new Date(today.getFullYear() - 1, 0, 1);
+            endDate = new Date(today.getFullYear() - 1, 11, 31);
+            break;
+        case 'custom':
+            // Don't change the dates, let user set them manually
+            loadAnalytics();
+            return;
+        default:
+            startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+    }
+    
+    startDateInput.value = startDate.toISOString().split('T')[0];
+    endDateInput.value = endDate.toISOString().split('T')[0];
+    
+    // Auto-load analytics when timeframe changes
+    loadAnalytics();
+}
+
+function resetFilters() {
+    document.getElementById('category-filter').value = 'all';
+    document.getElementById('date-range').value = 'last-month';
+    handleDateRangeChange();
+}
+
+function setDefaultDateRange() {
+    // Set default to last month
     const endDate = new Date();
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 12);
@@ -446,16 +537,15 @@ function setupCharts() {
         }
     });
 
-    // Time of day chart
-    const timeCtx = document.getElementById('time-of-day-chart').getContext('2d');
-    timeOfDayChart = new Chart(timeCtx, {
+    // Weekly trend chart
+    const weeklyCtx = document.getElementById('weekly-trend-chart').getContext('2d');
+    weeklyTrendChart = new Chart(weeklyCtx, {
         type: 'line',
         data: {
-            labels: ['12AM', '1AM', '2AM', '3AM', '4AM', '5AM', '6AM', '7AM', '8AM', '9AM', '10AM', '11AM',
-                     '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM', '10PM', '11PM'],
+            labels: [],
             datasets: [{
-                label: 'Spending by Time',
-                data: new Array(24).fill(0),
+                label: 'Weekly Spending',
+                data: [],
                 borderColor: 'rgb(255, 99, 132)',
                 backgroundColor: 'rgba(255, 99, 132, 0.1)',
                 tension: 0.1,
@@ -473,7 +563,7 @@ function setupCharts() {
             scales: {
                 x: {
                     ticks: {
-                        maxTicksLimit: 8 // Show only every 3rd hour label to avoid crowding
+                        maxTicksLimit: 8
                     }
                 },
                 y: {
@@ -571,35 +661,86 @@ function updateSpendingPatterns(data) {
                 // Update day of week chart
                 dayOfWeekChart.data.datasets[0].data = patterns.day_of_week;
                 dayOfWeekChart.update();
-                
-                // Update time of day chart
-                timeOfDayChart.data.datasets[0].data = patterns.time_of_day;
-                timeOfDayChart.update();
             } else {
                 console.error('Failed to load spending patterns:', result.error);
-                // Fallback to sample data
+                // Fallback to empty data
                 const dayOfWeekData = [0, 0, 0, 0, 0, 0, 0];
-                const timeOfDayData = new Array(24).fill(0);
-                
                 dayOfWeekChart.data.datasets[0].data = dayOfWeekData;
                 dayOfWeekChart.update();
-                
-                timeOfDayChart.data.datasets[0].data = timeOfDayData;
-                timeOfDayChart.update();
             }
         })
         .catch(error => {
             console.error('Error loading spending patterns:', error);
             // Fallback to empty data
             const dayOfWeekData = [0, 0, 0, 0, 0, 0, 0];
-            const timeOfDayData = new Array(24).fill(0);
-            
             dayOfWeekChart.data.datasets[0].data = dayOfWeekData;
             dayOfWeekChart.update();
-            
-            timeOfDayChart.data.datasets[0].data = timeOfDayData;
-            timeOfDayChart.update();
         });
+    
+    // Update weekly trend chart with aggregated data
+    updateWeeklyTrendChart();
+}
+
+function updateWeeklyTrendChart() {
+    const params = new URLSearchParams({
+        category: document.getElementById('category-filter').value,
+        start_date: document.getElementById('start-date').value,
+        end_date: document.getElementById('end-date').value
+    });
+    
+    fetch(`/api/expenses/aggregated?${params}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const data = result.data;
+                
+                // Process data for weekly trends
+                let weeklyData = [];
+                let weeklyLabels = [];
+                
+                if (Array.isArray(data) && data.length > 0) {
+                    // Group data by week
+                    const startDate = new Date(document.getElementById('start-date').value);
+                    const endDate = new Date(document.getElementById('end-date').value);
+                    const weekMap = new Map();
+                    
+                    // Process aggregated data to create weekly totals
+                    data.forEach(category => {
+                        if (category.data) {
+                            category.data.forEach(item => {
+                                const date = new Date(item.month + '-01');
+                                const weekKey = getWeekKey(date);
+                                
+                                if (!weekMap.has(weekKey)) {
+                                    weekMap.set(weekKey, 0);
+                                }
+                                weekMap.set(weekKey, weekMap.get(weekKey) + Math.abs(item.total));
+                            });
+                        }
+                    });
+                    
+                    // Convert to arrays for chart
+                    const sortedWeeks = Array.from(weekMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+                    weeklyLabels = sortedWeeks.map(([week, _]) => week);
+                    weeklyData = sortedWeeks.map(([_, total]) => total);
+                }
+                
+                // Update chart
+                weeklyTrendChart.data.labels = weeklyLabels;
+                weeklyTrendChart.data.datasets[0].data = weeklyData;
+                weeklyTrendChart.update();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading weekly trend data:', error);
+        });
+}
+
+function getWeekKey(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const week = Math.ceil(date.getDate() / 7);
+    return `${year}-${month.toString().padStart(2, '0')}-W${week}`;
 }
 </script>
 {% endblock %}
