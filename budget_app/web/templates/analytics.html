@@ -109,7 +109,9 @@
                 <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Monthly Trends</h5>
             </div>
             <div class="card-body">
-                <canvas id="monthly-trends-chart" height="100"></canvas>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="monthly-trends-chart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -120,7 +122,9 @@
                 <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Category Breakdown</h5>
             </div>
             <div class="card-body">
-                <canvas id="category-breakdown-chart" height="100"></canvas>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="category-breakdown-chart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -146,7 +150,9 @@
                 <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i>Monthly Comparison</h5>
             </div>
             <div class="card-body">
-                <canvas id="monthly-comparison-chart" height="100"></canvas>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="monthly-comparison-chart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -161,11 +167,15 @@
                 <div class="row">
                     <div class="col-md-6">
                         <h6>Day of Week Spending</h6>
-                        <canvas id="day-of-week-chart" height="100"></canvas>
+                        <div style="height: 300px; position: relative;">
+                            <canvas id="day-of-week-chart"></canvas>
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <h6>Time of Day Spending</h6>
-                        <canvas id="time-of-day-chart" height="100"></canvas>
+                        <div style="height: 300px; position: relative;">
+                            <canvas id="time-of-day-chart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -330,7 +340,12 @@ function setupCharts() {
             },
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(0);
+                        }
+                    }
                 }
             }
         }
@@ -387,7 +402,12 @@ function setupCharts() {
             },
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(0);
+                        }
+                    }
                 }
             }
         }
@@ -398,7 +418,7 @@ function setupCharts() {
     dayOfWeekChart = new Chart(dayCtx, {
         type: 'bar',
         data: {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], // SQLite strftime '%w' format: 0=Sunday
             datasets: [{
                 label: 'Spending by Day',
                 data: [0, 0, 0, 0, 0, 0, 0],
@@ -408,9 +428,19 @@ function setupCharts() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(0);
+                        }
+                    }
                 }
             }
         }
@@ -421,21 +451,38 @@ function setupCharts() {
     timeOfDayChart = new Chart(timeCtx, {
         type: 'line',
         data: {
-            labels: ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM', '12AM'],
+            labels: ['12AM', '1AM', '2AM', '3AM', '4AM', '5AM', '6AM', '7AM', '8AM', '9AM', '10AM', '11AM',
+                     '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM', '10PM', '11PM'],
             datasets: [{
                 label: 'Spending by Time',
-                data: [0, 0, 0, 0, 0, 0, 0],
+                data: new Array(24).fill(0),
                 borderColor: 'rgb(255, 99, 132)',
                 backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                tension: 0.1
+                tension: 0.1,
+                fill: true
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
             scales: {
+                x: {
+                    ticks: {
+                        maxTicksLimit: 8 // Show only every 3rd hour label to avoid crowding
+                    }
+                },
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(0);
+                        }
+                    }
                 }
             }
         }
