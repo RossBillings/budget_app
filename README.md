@@ -346,12 +346,13 @@ alembic upgrade head
 
 ### CSV Format Requirements
 
-The application supports two CSV formats:
+The application supports three CSV formats:
 
 1. **Capital One Format**: Columns include `Transaction Date`, `Description`, `Debit`, `Credit`
 2. **USAA Format**: Columns include `Date`, `Description`, `Amount`
+3. **Chase United Format**: Columns include `Transaction Date`, `Description`, `Amount` (with MM/DD/YYYY dates)
 
-The import process automatically detects the format and handles sign corrections appropriately.
+The import process automatically detects the format and handles sign corrections and date conversions appropriately.
 
 ## License
 

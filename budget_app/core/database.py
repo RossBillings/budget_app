@@ -103,7 +103,7 @@ def import_transactions_from_csv(
     
     result = {"inserted": 0, "skipped": 0, "duplicates": 0, "errors": 0}
     
-    with get_db() as db, open(file_path, "r", newline="") as f:
+    with open(file_path, "r", newline="") as f:
         reader = csv.DictReader(f)
         batch = []
         
@@ -123,7 +123,7 @@ def import_transactions_from_csv(
                 
                 # Process batch when it reaches the specified size
                 if len(batch) >= batch_size:
-                    batch_result = _process_batch(db, batch)
+                    batch_result = _process_batch_safe(batch)
                     _update_result(result, batch_result)
                     batch = []
                     
@@ -136,7 +136,7 @@ def import_transactions_from_csv(
         
         # Process any remaining records in the final batch
         if batch:
-            batch_result = _process_batch(db, batch)
+            batch_result = _process_batch_safe(batch)
             _update_result(result, batch_result)
     
     logger.info(
@@ -150,7 +150,7 @@ def import_transactions_from_csv(
 
 def _preprocess_csv_row(row: Dict[str, str]) -> Dict[str, str]:
     """
-    Preprocess a CSV row to standardize format between Capital One and USAA.
+    Preprocess a CSV row to standardize format between Capital One, USAA, and Chase United.
     
     Args:
         row: Raw CSV row dictionary
@@ -176,8 +176,25 @@ def _preprocess_csv_row(row: Dict[str, str]) -> Dict[str, str]:
         processed_row['Transaction Date'] = row.get('Transaction Date', '').strip()
         processed_row['Description'] = row.get('Description', '').strip()
     
-    # Handle USAA format (has single Amount column)
-    elif 'Amount' in row:
+    # Handle Chase United format (has Amount and Transaction Date columns)
+    elif 'Amount' in row and 'Transaction Date' in row:
+        # Chase United amounts are already in correct sign (negative for expenses)
+        processed_row['Amount'] = row.get('Amount', '0').strip()
+        
+        # Convert Chase United date format from MM/DD/YYYY to YYYY-MM-DD
+        date_str = row.get('Transaction Date', '').strip()
+        try:
+            # Parse MM/DD/YYYY format and convert to YYYY-MM-DD
+            date_obj = datetime.strptime(date_str, "%m/%d/%Y")
+            processed_row['Transaction Date'] = date_obj.strftime("%Y-%m-%d")
+        except ValueError:
+            # If parsing fails, keep original format
+            processed_row['Transaction Date'] = date_str
+        
+        processed_row['Description'] = row.get('Description', '').strip()
+    
+    # Handle USAA format (has single Amount column with Date)
+    elif 'Amount' in row and 'Date' in row:
         try:
             amount_val = float(row['Amount'])
             # Invert the sign for USAA input (their format is opposite)
@@ -258,6 +275,43 @@ def _process_batch(db: Session, batch: List[Transaction]) -> Dict[str, int]:
         db.rollback()
         logger.error(f"Error processing batch: {e}")
         result["errors"] = len(batch)
+    
+    return result
+
+
+def _process_batch_safe(batch: List[Transaction]) -> Dict[str, int]:
+    """
+    Process a batch of transactions with individual duplicate handling.
+    
+    This function processes each transaction individually, skipping duplicates
+    but importing any new transactions. This ensures that files with mixed
+    new/duplicate data import successfully.
+    """
+    if not batch:
+        return {"inserted": 0, "duplicates": 0, "errors": 0}
+    
+    result = {"inserted": 0, "duplicates": 0, "errors": 0}
+    
+    for txn in batch:
+        try:
+            with get_db() as db:
+                # Check if transaction already exists
+                existing = db.query(Transaction).filter(
+                    Transaction.dedupe_key == txn.dedupe_key
+                ).first()
+                
+                if existing:
+                    result["duplicates"] += 1
+                    logger.debug(f"Skipping duplicate transaction: {txn.description[:30]}...")
+                else:
+                    # Add the transaction
+                    db.add(txn)
+                    db.commit()
+                    result["inserted"] += 1
+                    
+        except Exception as e:
+            result["errors"] += 1
+            logger.error(f"Error inserting transaction {txn.description[:30]}: {e}")
     
     return result
 
@@ -479,6 +533,50 @@ def delete_transaction(transaction_id: str) -> bool:
             db.commit()
             return True
         return False
+
+
+def update_transaction_category(transaction_id: str, category: str, manual_lock: bool = False) -> bool:
+    """
+    Update a transaction's category and optionally lock it from auto-recategorization.
+    
+    Args:
+        transaction_id: ID of the transaction to update
+        category: New category name
+        manual_lock: If True, prefix description with '+' to prevent auto-recategorization
+        
+    Returns:
+        bool: True if the transaction was updated, False if not found
+    """
+    with get_db() as db:
+        transaction = db.query(Transaction).filter(
+            Transaction.id == transaction_id
+        ).first()
+        
+        if not transaction:
+            return False
+        
+        # Update category
+        transaction.category = category.lower()
+        
+        # Handle manual lock - prefix description with '+' to prevent auto-recategorization
+        if manual_lock:
+            if not transaction.description.startswith('+'):
+                transaction.description = '+' + transaction.description
+        else:
+            # If manual_lock is False and description starts with '+', remove it
+            if transaction.description.startswith('+'):
+                transaction.description = transaction.description[1:]
+        
+        # Regenerate dedupe key with new category
+        transaction.dedupe_key = Transaction.generate_dedupe_key(
+            transaction_date=transaction.transaction_date,
+            amount=transaction.amount,
+            description=transaction.description,
+            category=transaction.category
+        )
+        
+        db.commit()
+        return True
 
 
 def get_aggregated_expenses_by_month(

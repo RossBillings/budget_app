@@ -128,6 +128,7 @@ let allTransactions = [];
 document.addEventListener('DOMContentLoaded', function() {
     BudgetApp.setCurrentPage('transactions');
     loadCategories();
+    restoreFilters(); // Restore saved filters
     loadTransactions();
     setupEventListeners();
 });
@@ -135,6 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupEventListeners() {
     document.getElementById('apply-filters').addEventListener('click', function() {
         currentOffset = 0;
+        saveFilters(); // Save filters when applied
         loadTransactions();
     });
     
@@ -146,10 +148,19 @@ function setupEventListeners() {
     });
     document.getElementById('export-csv').addEventListener('click', exportTransactions);
     
+    // Save filters when they change
+    document.getElementById('category-filter').addEventListener('change', saveFilters);
+    document.getElementById('start-date').addEventListener('change', saveFilters);
+    document.getElementById('end-date').addEventListener('change', saveFilters);
+    document.getElementById('sort-by').addEventListener('change', saveFilters);
+    document.getElementById('sort-order').addEventListener('change', saveFilters);
+    document.getElementById('limit').addEventListener('change', saveFilters);
+    
     // Debounced search
     const searchInput = document.getElementById('keyword-search');
     searchInput.addEventListener('input', BudgetApp.debounce(function() {
         currentOffset = 0;
+        saveFilters(); // Save search term too
         loadTransactions();
     }, 500));
 }
@@ -235,7 +246,16 @@ function displayTransactions(transactions) {
         row.innerHTML = `
             <td>${BudgetApp.formatDate(transaction.date)}</td>
             <td>${transaction.description}</td>
-            <td><span class="badge bg-secondary">${transaction.category}</span></td>
+            <td>
+                <span class="badge bg-secondary category-badge" 
+                      onclick="editCategory('${transaction.id}', '${transaction.category}')"
+                      data-bs-toggle="tooltip" 
+                      title="Click to edit category"
+                      style="cursor: pointer;">
+                    ${transaction.category}
+                    ${transaction.description.startsWith('+') ? ' <i class="fas fa-lock fa-xs" title="Manually set"></i>' : ''}
+                </span>
+            </td>
             <td class="${transaction.amount >= 0 ? 'text-danger' : 'text-success'}">
                 ${transaction.amount >= 0 ? '+' : ''}${BudgetApp.formatCurrency(transaction.amount)}
             </td>
@@ -289,7 +309,39 @@ function resetFilters() {
     document.getElementById('limit').value = '50';
     
     currentOffset = 0;
+    saveFilters(); // Save the reset state
     loadTransactions();
+}
+
+function saveFilters() {
+    const filters = {
+        category: document.getElementById('category-filter').value,
+        startDate: document.getElementById('start-date').value,
+        endDate: document.getElementById('end-date').value,
+        keyword: document.getElementById('keyword-search').value,
+        sortBy: document.getElementById('sort-by').value,
+        sortOrder: document.getElementById('sort-order').value,
+        limit: document.getElementById('limit').value
+    };
+    localStorage.setItem('transactionFilters', JSON.stringify(filters));
+}
+
+function restoreFilters() {
+    const saved = localStorage.getItem('transactionFilters');
+    if (saved) {
+        try {
+            const filters = JSON.parse(saved);
+            if (filters.category) document.getElementById('category-filter').value = filters.category;
+            if (filters.startDate) document.getElementById('start-date').value = filters.startDate;
+            if (filters.endDate) document.getElementById('end-date').value = filters.endDate;
+            if (filters.keyword) document.getElementById('keyword-search').value = filters.keyword;
+            if (filters.sortBy) document.getElementById('sort-by').value = filters.sortBy;
+            if (filters.sortOrder) document.getElementById('sort-order').value = filters.sortOrder;
+            if (filters.limit) document.getElementById('limit').value = filters.limit;
+        } catch (e) {
+            console.log('Error restoring filters:', e);
+        }
+    }
 }
 
 function deleteTransaction(id) {
@@ -345,6 +397,7 @@ function viewTransaction(id) {
                             <div class="col-md-6">
                                 <strong>Category:</strong><br>
                                 <span class="badge bg-secondary">${transaction.category}</span>
+                                ${transaction.description.startsWith('+') ? ' <i class="fas fa-lock fa-xs text-warning" title="Manually set"></i>' : ''}
                             </div>
                             <div class="col-md-6">
                                 <strong>Source:</strong><br>
@@ -375,6 +428,116 @@ function viewTransaction(id) {
             document.body.removeChild(modal);
         });
     }
+}
+
+function editCategory(transactionId, currentCategory) {
+    // Get all available categories from the category filter
+    const categorySelect = document.getElementById('category-filter');
+    const categories = Array.from(categorySelect.options)
+        .map(option => option.value)
+        .filter(value => value !== 'all')
+        .sort();
+    
+    // Create category selection modal
+    const modalHtml = `
+        <div class="modal fade" id="editCategoryModal" tabindex="-1">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Category</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="new-category" class="form-label">Select Category:</label>
+                            <select class="form-select" id="new-category">
+                                ${categories.map(cat => 
+                                    `<option value="${cat}" ${cat === currentCategory ? 'selected' : ''}>${cat}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual-lock">
+                            <label class="form-check-label" for="manual-lock">
+                                <small>Lock category (prevent auto-recategorization)</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="updateTransactionCategory('${transactionId}')">
+                            Update Category
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if it exists
+    const existingModal = document.getElementById('editCategoryModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to document
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
+    modal.show();
+    
+    // Clean up modal when hidden
+    document.getElementById('editCategoryModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+function updateTransactionCategory(transactionId) {
+    const newCategory = document.getElementById('new-category').value;
+    const isManualLock = document.getElementById('manual-lock').checked;
+    
+    if (!newCategory) {
+        BudgetApp.showNotification('Please select a category', 'warning');
+        return;
+    }
+    
+    // Update transaction
+    fetch(`/api/transactions/${transactionId}/category`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            category: newCategory,
+            manual_lock: isManualLock
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update local transaction data
+            const transaction = allTransactions.find(t => t.id === transactionId);
+            if (transaction) {
+                transaction.category = newCategory;
+                if (isManualLock && !transaction.description.startsWith('+')) {
+                    transaction.description = '+' + transaction.description;
+                }
+            }
+            
+            // Refresh display
+            displayTransactions(allTransactions);
+            
+            // Close modal and show success
+            bootstrap.Modal.getInstance(document.getElementById('editCategoryModal')).hide();
+            BudgetApp.showNotification('Category updated successfully', 'success');
+        } else {
+            BudgetApp.showNotification('Error updating category: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        BudgetApp.showNotification('Error updating category: ' + error.message, 'danger');
+    });
 }
 
 function exportTransactions() {

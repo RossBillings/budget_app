@@ -17,6 +17,7 @@ from ..core.database import (
     get_aggregated_expenses,
     import_transactions_from_csv,
     delete_transaction,
+    update_transaction_category,
     get_all_categories,
     create_category,
     update_category,
@@ -259,6 +260,26 @@ def create_app():
                 # Emit real-time update
                 socketio.emit('transaction_deleted', {'id': transaction_id})
                 return jsonify({'success': True, 'message': 'Transaction deleted'})
+            else:
+                return jsonify({'success': False, 'error': 'Transaction not found'}), 404
+                
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/transactions/<transaction_id>/category', methods=['PUT'])
+    def api_update_transaction_category(transaction_id):
+        """Update a transaction's category."""
+        try:
+            data = request.get_json()
+            if not data or 'category' not in data:
+                return jsonify({'success': False, 'error': 'Category is required'}), 400
+            
+            category = data['category'].strip().lower()
+            manual_lock = data.get('manual_lock', False)
+            
+            success = update_transaction_category(transaction_id, category, manual_lock)
+            if success:
+                return jsonify({'success': True, 'message': 'Transaction category updated'})
             else:
                 return jsonify({'success': False, 'error': 'Transaction not found'}), 404
                 
