@@ -121,7 +121,7 @@
     <div class="col-md-8 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Monthly Trends</h5>
+                <h5 class="mb-0" id="monthly-trends-title"><i class="fas fa-chart-bar me-2"></i>Monthly Trends</h5>
             </div>
             <div class="card-body">
                 <div style="height: 300px; position: relative;">
@@ -203,7 +203,6 @@
 <script>
 let monthlyTrendsChart = null;
 let categoryBreakdownChart = null;
-let monthlyComparisonChart = null;
 let dayOfWeekChart = null;
 let weeklyTrendChart = null;
 
@@ -228,7 +227,9 @@ document.addEventListener('DOMContentLoaded', function() {
     handleDateRangeChange();
     
     // Initialize charts first
+    console.log('=== CALLING setupCharts() from DOMContentLoaded ===');
     setupCharts();
+    console.log('=== setupCharts() call completed ===');
     
     // Then load data
     loadCategories();
@@ -404,8 +405,24 @@ function loadAnalytics() {
         .then(data => {
             BudgetApp.hideLoadingOverlay();
             console.log('API response data:', data);
+            console.log('API response data type:', typeof data);
+            console.log('API response success:', data ? data.success : 'data is null');
+            console.log('API response data field:', data ? data.data : 'data is null');
+            console.log('API response data field type:', data ? typeof data.data : 'data is null');
+            
+            if (!data) {
+                console.error('API response is null');
+                BudgetApp.showNotification('API returned null response', 'danger');
+                return;
+            }
             
             if (data.success) {
+                console.log('About to call updateAnalytics with:', data.data);
+                if (data.data === null) {
+                    console.warn('API returned success but data.data is null');
+                    BudgetApp.showNotification('No analytics data available', 'warning');
+                    return;
+                }
                 updateAnalytics(data.data);
             } else {
                 console.error('API returned error:', data.error);
@@ -421,32 +438,81 @@ function loadAnalytics() {
 
 function updateAnalytics(data) {
     console.log('updateAnalytics called with data:', data);
+    console.log('Data type:', typeof data);
+    console.log('Data is null:', data === null);
+    console.log('Data is undefined:', data === undefined);
     
     try {
-        // Update summary cards
-        updateSummaryCards(data);
-        console.log('Summary cards updated');
+        // Validate data
+        if (!data) {
+            console.warn('No data provided to updateAnalytics');
+            BudgetApp.showNotification('No analytics data available', 'warning');
+            return;
+        }
         
-        // Update charts
-        updateMonthlyTrendsChart(data);
-        console.log('Monthly trends chart updated');
+        // Update summary cards with error catching
+        try {
+            console.log('About to call updateSummaryCards...');
+            updateSummaryCards(data);
+            console.log('Summary cards updated successfully');
+        } catch (error) {
+            console.error('Error in updateSummaryCards:', error);
+            throw new Error('Summary cards update failed: ' + error.message);
+        }
         
-        updateCategoryBreakdownChart(data);
-        console.log('Category breakdown chart updated');
+        // Update charts with error catching
+        try {
+            console.log('About to call updateMonthlyTrendsChart...');
+            updateMonthlyTrendsChart(data);
+            console.log('Monthly trends chart updated successfully');
+        } catch (error) {
+            console.error('Error in updateMonthlyTrendsChart:', error);
+            // Don't throw here, continue with other updates
+        }
         
-        updateTopCategories(data);
-        console.log('Top categories updated');
+        try {
+            console.log('About to call updateCategoryBreakdownChart...');
+            updateCategoryBreakdownChart(data);
+            console.log('Category breakdown chart updated successfully');
+        } catch (error) {
+            console.error('Error in updateCategoryBreakdownChart:', error);
+            throw new Error('Category breakdown update failed: ' + error.message);
+        }
         
-        updateBudgetComparison(data);
-        console.log('Budget comparison updated');
+        try {
+            console.log('About to call updateTopCategories...');
+            updateTopCategories(data);
+            console.log('Top categories updated successfully');
+        } catch (error) {
+            console.error('Error in updateTopCategories:', error);
+            throw new Error('Top categories update failed: ' + error.message);
+        }
         
-        updateSpendingPatterns(data);
-        console.log('Spending patterns updated');
+        try {
+            console.log('About to call updateBudgetComparison...');
+            updateBudgetComparison(data);
+            console.log('Budget comparison updated successfully');
+        } catch (error) {
+            console.error('Error in updateBudgetComparison:', error);
+            // Don't throw here, this is optional
+        }
+        
+        try {
+            console.log('About to call updateSpendingPatterns...');
+            updateSpendingPatterns(data);
+            console.log('Spending patterns updated successfully');
+        } catch (error) {
+            console.error('Error in updateSpendingPatterns:', error);
+            // Don't throw here, this is optional
+        }
         
         console.log('All analytics components updated successfully');
         
     } catch (error) {
         console.error('Error updating analytics:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
         BudgetApp.showNotification('Error displaying analytics data: ' + error.message, 'danger');
     }
 }
@@ -456,34 +522,60 @@ function updateSummaryCards(data) {
     let totalIncome = 0;
     
     console.log('updateSummaryCards received data:', data);
+    console.log('Data type:', typeof data);
+    console.log('Data is null:', data === null);
+    console.log('Data is array:', Array.isArray(data));
     
-    if (Array.isArray(data)) {
-        // Multiple categories
-        data.forEach(category => {
-            if (category.data && Array.isArray(category.data)) {
-                category.data.forEach(item => {
-                    const amount = parseFloat(item.total) || 0;
-                    if (category.category && category.category.toLowerCase() === 'income') {
-                        // Income category - treat as income even if positive
-                        totalIncome += Math.abs(amount);
-                    } else if (amount > 0) {
-                        totalExpenses += amount;
-                    } else if (amount < 0) {
-                        totalIncome += Math.abs(amount);
-                    }
-                });
-            }
-        });
+    if (!data) {
+        console.log('No data provided to updateSummaryCards - using zero values');
+        // Set to zero values
     } else if (Array.isArray(data)) {
-        // Single category array
-        data.forEach(item => {
-            const amount = parseFloat(item.total) || 0;
-            if (amount > 0) {
-                totalExpenses += amount;
-            } else if (amount < 0) {
-                totalIncome += Math.abs(amount);
+        console.log('Processing', data.length, 'categories for summary cards');
+        
+        // Multiple categories
+        data.forEach((category, categoryIndex) => {
+            console.log(`Processing summary category ${categoryIndex}:`, category);
+            
+            if (!category) {
+                console.error(`Category ${categoryIndex} is null/undefined`);
+                return; // Skip this category
             }
+            
+            if (!category.data) {
+                console.log(`Category ${categoryIndex} (${category.category}) has no data property`);
+                return; // Skip this category
+            }
+            
+            if (!Array.isArray(category.data)) {
+                console.error(`Category ${categoryIndex} (${category.category}) data is not an array:`, category.data);
+                return; // Skip this category
+            }
+            
+            console.log(`Category ${categoryIndex} (${category.category}) has ${category.data.length} data items`);
+            
+            category.data.forEach((item, itemIndex) => {
+                if (!item) {
+                    console.error(`Item ${itemIndex} in category ${category.category} is null`);
+                    return;
+                }
+                
+                const amount = parseFloat(item.total) || 0;
+                console.log(`Item ${itemIndex} in ${category.category}: amount=${amount}`);
+                
+                if (category.category && category.category.toLowerCase() === 'income') {
+                    // Income category - treat as income (should be positive)
+                    totalIncome += Math.abs(amount);
+                } else if (amount < 0) {
+                    // Negative amounts are expenses
+                    totalExpenses += Math.abs(amount);
+                } else if (amount > 0) {
+                    // Positive amounts are income/credits
+                    totalIncome += amount;
+                }
+            });
         });
+    } else {
+        console.log('updateSummaryCards received unexpected data format:', typeof data, data);
     }
     
     console.log('Calculated totals - Expenses:', totalExpenses, 'Income:', totalIncome);
@@ -515,16 +607,39 @@ function calculateMonthsInPeriod() {
 
 function setupCharts() {
     try {
-        console.log('Setting up charts...');
+        console.log('=== STARTING setupCharts() ===');
+        
+        // Initialize chart variables to null first
+        monthlyTrendsChart = null;
+        categoryBreakdownChart = null;
+        dayOfWeekChart = null;
+        weeklyTrendChart = null;
+        console.log('Chart variables initialized to null');
+        
+        // Check if Chart.js is available
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js library is not loaded');
+            return;
+        }
+        console.log('Chart.js library is available');
         
         // Monthly trends chart
+        console.log('Looking for monthly-trends-chart canvas...');
         const monthlyCanvas = document.getElementById('monthly-trends-chart');
         if (!monthlyCanvas) {
             console.error('Monthly trends chart canvas not found');
             return;
         }
+        console.log('Monthly trends canvas found, getting context...');
         
         const monthlyCtx = monthlyCanvas.getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (monthlyTrendsChart) {
+            monthlyTrendsChart.destroy();
+        }
+        
+        console.log('Creating monthly trends chart...');
         monthlyTrendsChart = new Chart(monthlyCtx, {
         type: 'line',
         data: {
@@ -534,21 +649,46 @@ function setupCharts() {
                 data: [],
                 borderColor: 'rgb(255, 99, 132)',
                 backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                tension: 0.1
+                tension: 0.1,
+                type: 'line'
             }, {
                 label: 'Income',
                 data: [],
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                tension: 0.1
+                tension: 0.1,
+                type: 'line'
+            }, {
+                label: 'Category Spending',
+                data: [],
+                backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1,
+                type: 'bar',
+                hidden: true  // Initially hidden, shown when category is selected
+            }, {
+                label: 'Budget',
+                data: [],
+                borderColor: 'rgb(255, 193, 7)',
+                backgroundColor: 'rgba(255, 193, 7, 0.3)',
+                borderWidth: 3,
+                borderDash: [5, 5],
+                tension: 0,
+                type: 'line',
+                pointRadius: 0,
+                hidden: true  // Initially hidden, shown when category is selected
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
             plugins: {
                 legend: {
-                    position: 'top',
+                    position: 'top'
                 }
             },
             scales: {
@@ -563,10 +703,18 @@ function setupCharts() {
             }
         }
     });
+    console.log('✅ Monthly trends chart created successfully');
 
     // Category breakdown chart
-    const categoryCtx = document.getElementById('category-breakdown-chart').getContext('2d');
-    categoryBreakdownChart = new Chart(categoryCtx, {
+    console.log('Looking for category-breakdown-chart canvas...');
+    const categoryCanvas = document.getElementById('category-breakdown-chart');
+    if (!categoryCanvas) {
+        console.error('Category breakdown chart canvas not found');
+    } else {
+        console.log('Category breakdown canvas found, getting context...');
+        const categoryCtx = categoryCanvas.getContext('2d');
+        console.log('Creating category breakdown chart...');
+        categoryBreakdownChart = new Chart(categoryCtx, {
         type: 'doughnut',
         data: {
             labels: [],
@@ -588,47 +736,21 @@ function setupCharts() {
             }
         }
     });
+    console.log('✅ Category breakdown chart created successfully');
+    }
 
-    // Monthly comparison chart
-    const comparisonCtx = document.getElementById('monthly-comparison-chart').getContext('2d');
-    monthlyComparisonChart = new Chart(comparisonCtx, {
-        type: 'bar',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Current Month',
-                data: [],
-                backgroundColor: 'rgba(102, 126, 234, 0.8)'
-            }, {
-                label: 'Previous Month',
-                data: [],
-                backgroundColor: 'rgba(255, 193, 7, 0.8)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return '$' + value.toFixed(0);
-                        }
-                    }
-                }
-            }
-        }
-    });
+    // Monthly comparison chart - REMOVED (no canvas element exists for this)
 
     // Day of week chart
-    const dayCtx = document.getElementById('day-of-week-chart').getContext('2d');
-    dayOfWeekChart = new Chart(dayCtx, {
+    console.log('Looking for day-of-week-chart canvas...');
+    const dayCanvas = document.getElementById('day-of-week-chart');
+    if (!dayCanvas) {
+        console.error('Day of week chart canvas not found');
+    } else {
+        console.log('Day of week canvas found, getting context...');
+        const dayCtx = dayCanvas.getContext('2d');
+        console.log('Creating day of week chart...');
+        dayOfWeekChart = new Chart(dayCtx, {
         type: 'bar',
         data: {
             labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], // SQLite strftime '%w' format: 0=Sunday
@@ -658,10 +780,19 @@ function setupCharts() {
             }
         }
     });
+    console.log('✅ Day of week chart created successfully');
+    }
 
     // Weekly trend chart
-    const weeklyCtx = document.getElementById('weekly-trend-chart').getContext('2d');
-    weeklyTrendChart = new Chart(weeklyCtx, {
+    console.log('Looking for weekly-trend-chart canvas...');
+    const weeklyCanvas = document.getElementById('weekly-trend-chart');
+    if (!weeklyCanvas) {
+        console.error('Weekly trend chart canvas not found');
+    } else {
+        console.log('Weekly trend canvas found, getting context...');
+        const weeklyCtx = weeklyCanvas.getContext('2d');
+        console.log('Creating weekly trend chart...');
+        weeklyTrendChart = new Chart(weeklyCtx, {
         type: 'line',
         data: {
             labels: [],
@@ -699,8 +830,15 @@ function setupCharts() {
             }
         }
     });
+    console.log('✅ Weekly trend chart created successfully');
+    }
     
-    console.log('All charts initialized successfully');
+    console.log('=== ALL CHARTS INITIALIZED SUCCESSFULLY ===');
+    console.log('Final chart states:');
+    console.log('monthlyTrendsChart:', monthlyTrendsChart ? 'INITIALIZED' : 'NULL');
+    console.log('categoryBreakdownChart:', categoryBreakdownChart ? 'INITIALIZED' : 'NULL');
+    console.log('dayOfWeekChart:', dayOfWeekChart ? 'INITIALIZED' : 'NULL');
+    console.log('weeklyTrendChart:', weeklyTrendChart ? 'INITIALIZED' : 'NULL');
     
     } catch (error) {
         console.error('Error setting up charts:', error);
@@ -709,70 +847,317 @@ function setupCharts() {
 }
 
 function updateMonthlyTrendsChart(data) {
+    // Check if chart is initialized
+    if (!monthlyTrendsChart) {
+        console.error('Monthly trends chart not initialized');
+        return;
+    }
+    
+    const categoryValue = document.getElementById('category-filter').value;
+    const startDateValue = document.getElementById('start-date').value;
+    const endDateValue = document.getElementById('end-date').value;
+    
+    if (!startDateValue || !endDateValue) {
+        console.error('Missing date values for trends chart');
+        return;
+    }
+    
     // Load real monthly trends data
-    const params = new URLSearchParams({
-        category: document.getElementById('category-filter').value,
-        start_date: document.getElementById('start-date').value,
-        end_date: document.getElementById('end-date').value
+    const trendsParams = new URLSearchParams({
+        category: categoryValue,
+        start_date: startDateValue,
+        end_date: endDateValue
     });
+    
+    if (categoryValue === 'all') {
+        // Show income vs expenses (original behavior)
+        updateIncomeVsExpensesChart(trendsParams);
+    } else {
+        // Show category spending bars with budget line
+        updateCategorySpendingChart(categoryValue, trendsParams);
+    }
+}
+
+function updateIncomeVsExpensesChart(params) {
+    // Update chart title
+    document.getElementById('monthly-trends-title').innerHTML = 
+        '<i class="fas fa-chart-line me-2"></i>Monthly Income vs Expenses';
     
     fetch(`/api/trends/monthly?${params}`)
         .then(response => response.json())
         .then(result => {
-            if (result.success) {
+            console.log('Income vs Expenses API result:', result);
+            
+            if (result.success && result.data) {
                 const trendsData = result.data;
+                
+                // Validate the data structure
+                if (!trendsData.months || !Array.isArray(trendsData.months) ||
+                    !trendsData.expenses || !Array.isArray(trendsData.expenses) ||
+                    !trendsData.income || !Array.isArray(trendsData.income)) {
+                    console.error('Invalid trends data structure:', trendsData);
+                    clearMonthlyTrendsChart();
+                    return;
+                }
+                
+                // Handle empty data gracefully
+                if (trendsData.months.length === 0) {
+                    console.log('No monthly trends data available for selected period');
+                    clearMonthlyTrendsChart();
+                    // Show a message in the chart area
+                    showNoDataMessage('No income/expense data available for the selected time period');
+                    return;
+                }
+                
+                // Show income/expenses datasets, hide category/budget datasets
+                monthlyTrendsChart.data.datasets[0].hidden = false; // Expenses
+                monthlyTrendsChart.data.datasets[1].hidden = false; // Income
+                monthlyTrendsChart.data.datasets[2].hidden = true;  // Category Spending
+                monthlyTrendsChart.data.datasets[3].hidden = true;  // Budget
+                
+                // Remove any existing no-data message
+                removeNoDataMessage();
                 
                 monthlyTrendsChart.data.labels = trendsData.months;
                 monthlyTrendsChart.data.datasets[0].data = trendsData.expenses;
                 monthlyTrendsChart.data.datasets[1].data = trendsData.income;
-                monthlyTrendsChart.update();
+                monthlyTrendsChart.data.datasets[2].data = [];
+                monthlyTrendsChart.data.datasets[3].data = [];
+                
+                // Update chart and refresh legend
+                monthlyTrendsChart.update('resize');
             } else {
-                console.error('Failed to load monthly trends:', result.error);
-                // Clear chart on error
-                monthlyTrendsChart.data.labels = [];
-                monthlyTrendsChart.data.datasets[0].data = [];
-                monthlyTrendsChart.data.datasets[1].data = [];
-                monthlyTrendsChart.update();
+                console.error('Failed to load monthly trends:', result.error || 'No data returned');
+                clearMonthlyTrendsChart();
             }
         })
         .catch(error => {
             console.error('Error loading monthly trends:', error);
-            // Clear chart on error
-            monthlyTrendsChart.data.labels = [];
-            monthlyTrendsChart.data.datasets[0].data = [];
-            monthlyTrendsChart.data.datasets[1].data = [];
-            monthlyTrendsChart.update();
+            console.error('Error stack:', error.stack);
+            clearMonthlyTrendsChart();
         });
 }
 
-function updateCategoryBreakdownChart(data) {
-    if (Array.isArray(data)) {
-        const labels = data.map(cat => cat.category);
-        const values = data.map(cat => {
-            if (cat.data) {
-                return cat.data.reduce((sum, item) => sum + Math.abs(item.total), 0);
+function updateCategorySpendingChart(categoryName, trendsParams) {
+    // Update chart title with category name
+    const capitalizedCategory = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
+    document.getElementById('monthly-trends-title').innerHTML = 
+        `<i class="fas fa-chart-bar me-2"></i>${capitalizedCategory} - Spending vs Budget`;
+    
+    // Load both category spending data and budget data
+    const trendsPromise = fetch(`/api/trends/monthly?${trendsParams}`)
+        .then(response => response.json());
+    
+    const budgetPromise = fetch(`/api/category/budget?category=${encodeURIComponent(categoryName)}`)
+        .then(response => response.json());
+    
+    Promise.all([trendsPromise, budgetPromise])
+        .then(([trendsResult, budgetResult]) => {
+            console.log('Category Spending - Trends result:', trendsResult);
+            console.log('Category Spending - Budget result:', budgetResult);
+            
+            if (trendsResult.success && trendsResult.data) {
+                const trendsData = trendsResult.data;
+                
+                // Validate the data structure
+                if (!trendsData.months || !Array.isArray(trendsData.months) ||
+                    !trendsData.expenses || !Array.isArray(trendsData.expenses)) {
+                    console.error('Invalid category trends data structure:', trendsData);
+                    clearMonthlyTrendsChart();
+                    return;
+                }
+                
+                // Handle empty data gracefully
+                if (trendsData.months.length === 0) {
+                    console.log(`No data available for category: ${categoryName}`);
+                    clearMonthlyTrendsChart();
+                    showNoDataMessage(`No spending data available for "${categoryName}" category in the selected time period`);
+                    return;
+                }
+                
+                // Hide income/expenses datasets, show category/budget datasets
+                monthlyTrendsChart.data.datasets[0].hidden = true;  // Expenses
+                monthlyTrendsChart.data.datasets[1].hidden = true;  // Income
+                monthlyTrendsChart.data.datasets[2].hidden = false; // Category Spending
+                monthlyTrendsChart.data.datasets[3].hidden = budgetResult.success && budgetResult.data && budgetResult.data.monthly_budget > 0 ? false : true; // Budget (only show if budget exists)
+                
+                // Remove any existing no-data message
+                removeNoDataMessage();
+                
+                monthlyTrendsChart.data.labels = trendsData.months;
+                monthlyTrendsChart.data.datasets[0].data = [];
+                monthlyTrendsChart.data.datasets[1].data = [];
+                
+                // Convert expenses to positive values for display as bars
+                const categorySpending = trendsData.expenses.map(value => Math.abs(value || 0));
+                monthlyTrendsChart.data.datasets[2].data = categorySpending;
+                
+                // Create budget line data if budget exists
+                if (budgetResult.success && budgetResult.data && budgetResult.data.monthly_budget > 0) {
+                    const budgetAmount = budgetResult.data.monthly_budget;
+                    const budgetData = new Array(trendsData.months.length).fill(budgetAmount);
+                    monthlyTrendsChart.data.datasets[3].data = budgetData;
+                } else {
+                    monthlyTrendsChart.data.datasets[3].data = [];
+                }
+                
+                // Update chart and refresh legend
+                monthlyTrendsChart.update('resize');
+            } else {
+                console.error('Failed to load category trends:', trendsResult.error || 'No data returned');
+                clearMonthlyTrendsChart();
             }
-            return 0;
+        })
+        .catch(error => {
+            console.error('Error loading category spending data:', error);
+            clearMonthlyTrendsChart();
         });
+}
+
+function clearMonthlyTrendsChart() {
+    if (monthlyTrendsChart) {
+        monthlyTrendsChart.data.labels = [];
+        monthlyTrendsChart.data.datasets[0].data = [];
+        monthlyTrendsChart.data.datasets[1].data = [];
+        monthlyTrendsChart.data.datasets[2].data = [];
+        monthlyTrendsChart.data.datasets[3].data = [];
+        
+        // Hide all datasets
+        monthlyTrendsChart.data.datasets.forEach(dataset => {
+            dataset.hidden = true;
+        });
+        
+        monthlyTrendsChart.update();
+    }
+}
+
+function showNoDataMessage(message) {
+    // Create a temporary overlay on the chart to show the message
+    const chartContainer = document.querySelector('#monthly-trends-chart').parentElement;
+    
+    // Remove any existing no-data message
+    const existingMessage = chartContainer.querySelector('.no-data-message');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+    
+    // Create new message
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'no-data-message';
+    messageDiv.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: #6c757d;
+        font-size: 14px;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    `;
+    messageDiv.innerHTML = `
+        <i class="fas fa-chart-bar fa-2x mb-2" style="color: #dee2e6;"></i><br>
+        ${message}
+    `;
+    
+    chartContainer.appendChild(messageDiv);
+}
+
+function removeNoDataMessage() {
+    const chartContainer = document.querySelector('#monthly-trends-chart').parentElement;
+    const existingMessage = chartContainer.querySelector('.no-data-message');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+}
+
+function updateCategoryBreakdownChart(data) {
+    console.log('updateCategoryBreakdownChart called with:', data);
+    console.log('Data type:', typeof data);
+    console.log('Data is array:', Array.isArray(data));
+    
+    if (!data) {
+        console.log('No data provided to updateCategoryBreakdownChart');
+        return;
+    }
+    
+    if (Array.isArray(data)) {
+        console.log('Processing array with', data.length, 'items');
+        
+        const labels = data.map((cat, index) => {
+            console.log(`Processing category ${index}:`, cat);
+            if (!cat) {
+                console.error(`Category ${index} is null/undefined`);
+                return 'Unknown';
+            }
+            return cat.category || 'Unknown';
+        });
+        
+        const values = data.map((cat, index) => {
+            console.log(`Processing values for category ${index}:`, cat);
+            if (!cat) {
+                console.error(`Category ${index} is null/undefined for values`);
+                return 0;
+            }
+            
+            if (cat.data && Array.isArray(cat.data)) {
+                console.log(`Category ${index} has ${cat.data.length} data items`);
+                return cat.data.reduce((sum, item) => {
+                    if (!item) {
+                        console.error(`Item in category ${index} is null`);
+                        return sum;
+                    }
+                    return sum + Math.abs(item.total || 0);
+                }, 0);
+            } else {
+                console.log(`Category ${index} has no data array:`, cat.data);
+                return 0;
+            }
+        });
+        
+        console.log('Final labels:', labels);
+        console.log('Final values:', values);
+        
+        if (!categoryBreakdownChart) {
+            console.error('categoryBreakdownChart is not initialized');
+            return;
+        }
         
         categoryBreakdownChart.data.labels = labels;
         categoryBreakdownChart.data.datasets[0].data = values;
         categoryBreakdownChart.update();
+    } else {
+        console.log('updateCategoryBreakdownChart received non-array data:', typeof data, data);
     }
 }
 
 function updateTopCategories(data) {
     const container = document.getElementById('top-categories');
     
+    if (!data) {
+        console.log('No data provided to updateTopCategories');
+        container.innerHTML = '<div class="text-center text-muted">No data available</div>';
+        return;
+    }
+    
     if (Array.isArray(data)) {
         // Sort categories by total amount
         const sortedCategories = data
             .map(cat => ({
-                name: cat.category,
-                total: cat.data ? cat.data.reduce((sum, item) => sum + Math.abs(item.total), 0) : 0
+                name: cat.category || 'Unknown',
+                total: cat.data && Array.isArray(cat.data) ? 
+                    cat.data.reduce((sum, item) => sum + Math.abs(item.total || 0), 0) : 0
             }))
             .sort((a, b) => b.total - a.total)
             .slice(0, 5);
+        
+        if (sortedCategories.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted">No categories found</div>';
+            return;
+        }
         
         container.innerHTML = sortedCategories.map((cat, index) => `
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -783,20 +1168,13 @@ function updateTopCategories(data) {
                 <div class="fw-bold">${BudgetApp.formatCurrency(cat.total)}</div>
             </div>
         `).join('');
+    } else {
+        console.log('updateTopCategories received non-array data:', data);
+        container.innerHTML = '<div class="text-center text-muted">Invalid data format</div>';
     }
 }
 
-function updateMonthlyComparisonChart(data) {
-    // Sample data for monthly comparison
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    const currentMonth = [1200, 1400, 1100, 1600, 1300, 1500];
-    const previousMonth = [1100, 1300, 1000, 1500, 1200, 1400];
-    
-    monthlyComparisonChart.data.labels = months;
-    monthlyComparisonChart.data.datasets[0].data = currentMonth;
-    monthlyComparisonChart.data.datasets[1].data = previousMonth;
-    monthlyComparisonChart.update();
-}
+// function updateMonthlyComparisonChart(data) - REMOVED (chart not used in current layout)
 
 function updateSpendingPatterns(data) {
     // Load real spending patterns data
@@ -808,12 +1186,25 @@ function updateSpendingPatterns(data) {
     fetch(`/api/spending/patterns?${params}`)
         .then(response => response.json())
         .then(result => {
-            if (result.success) {
+            if (result.success && result.data) {
                 const patterns = result.data;
                 
                 // Update day of week chart
-                dayOfWeekChart.data.datasets[0].data = patterns.day_of_week;
-                dayOfWeekChart.update();
+                if (!dayOfWeekChart) {
+                    console.error('dayOfWeekChart is not initialized');
+                    return;
+                }
+                
+                if (patterns.day_of_week && Array.isArray(patterns.day_of_week)) {
+                    dayOfWeekChart.data.datasets[0].data = patterns.day_of_week;
+                    dayOfWeekChart.update();
+                } else {
+                    console.error('Invalid day_of_week data structure:', patterns);
+                    // Fallback to empty data
+                    const dayOfWeekData = [0, 0, 0, 0, 0, 0, 0];
+                    dayOfWeekChart.data.datasets[0].data = dayOfWeekData;
+                    dayOfWeekChart.update();
+                }
             } else {
                 console.error('Failed to load spending patterns:', result.error);
                 // Fallback to empty data
@@ -824,10 +1215,15 @@ function updateSpendingPatterns(data) {
         })
         .catch(error => {
             console.error('Error loading spending patterns:', error);
-            // Fallback to empty data
-            const dayOfWeekData = [0, 0, 0, 0, 0, 0, 0];
-            dayOfWeekChart.data.datasets[0].data = dayOfWeekData;
-            dayOfWeekChart.update();
+            console.error('Spending patterns error stack:', error.stack);
+            
+            // Check if chart is initialized before fallback
+            if (dayOfWeekChart) {
+                // Fallback to empty data
+                const dayOfWeekData = [0, 0, 0, 0, 0, 0, 0];
+                dayOfWeekChart.data.datasets[0].data = dayOfWeekData;
+                dayOfWeekChart.update();
+            }
         });
     
     // Update weekly trend chart with aggregated data
@@ -844,17 +1240,32 @@ function updateWeeklyTrendChart() {
     fetch(`/api/spending/weekly?${params}`)
         .then(response => response.json())
         .then(result => {
-            if (result.success) {
+            if (result.success && result.data) {
                 const data = result.data;
                 
-                // Extract labels and data for chart
-                const weeklyLabels = data.map(item => item.week_label);
-                const weeklyData = data.map(item => item.total);
+                // Check if chart is initialized
+                if (!weeklyTrendChart) {
+                    console.error('weeklyTrendChart is not initialized');
+                    return;
+                }
                 
-                // Update chart
-                weeklyTrendChart.data.labels = weeklyLabels;
-                weeklyTrendChart.data.datasets[0].data = weeklyData;
-                weeklyTrendChart.update();
+                // Validate data structure
+                if (Array.isArray(data)) {
+                    // Extract labels and data for chart
+                    const weeklyLabels = data.map(item => item ? (item.week_label || 'Unknown') : 'Unknown');
+                    const weeklyData = data.map(item => item ? (item.total || 0) : 0);
+                    
+                    // Update chart
+                    weeklyTrendChart.data.labels = weeklyLabels;
+                    weeklyTrendChart.data.datasets[0].data = weeklyData;
+                    weeklyTrendChart.update();
+                } else {
+                    console.error('Weekly trends data is not an array:', data);
+                    // Clear chart on invalid data
+                    weeklyTrendChart.data.labels = [];
+                    weeklyTrendChart.data.datasets[0].data = [];
+                    weeklyTrendChart.update();
+                }
             } else {
                 console.error('Failed to load weekly trend data:', result.error);
                 // Clear chart on error
@@ -865,10 +1276,15 @@ function updateWeeklyTrendChart() {
         })
         .catch(error => {
             console.error('Error loading weekly trend data:', error);
-            // Clear chart on error
-            weeklyTrendChart.data.labels = [];
-            weeklyTrendChart.data.datasets[0].data = [];
-            weeklyTrendChart.update();
+            console.error('Weekly trend error stack:', error.stack);
+            
+            // Check if chart is initialized before clearing
+            if (weeklyTrendChart) {
+                // Clear chart on error
+                weeklyTrendChart.data.labels = [];
+                weeklyTrendChart.data.datasets[0].data = [];
+                weeklyTrendChart.update();
+            }
         });
 }
 
@@ -881,10 +1297,10 @@ function updateBudgetComparison(data) {
     fetch(`/api/budgets/comparison?${params}`)
         .then(response => response.json())
         .then(result => {
-            if (result.success) {
+            if (result.success && result.data !== null && result.data !== undefined) {
                 displayBudgetComparison(result.data);
             } else {
-                console.error('Failed to load budget comparison:', result.error);
+                console.error('Failed to load budget comparison:', result.error || 'No data returned');
                 displayBudgetComparison([]);
             }
         })

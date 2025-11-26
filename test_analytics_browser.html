@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Test - Budget App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #console-output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Analytics Page Error Testing</h1>
+    <p>This page will test the analytics functionality and catch JavaScript errors.</p>
+    
+    <div class="test-section">
+        <h3>📋 Test Instructions</h3>
+        <ol>
+            <li>Make sure the Budget App server is running on <strong>http://127.0.0.1:8080</strong></li>
+            <li>Click the test buttons below</li>
+            <li>Check the results and console output</li>
+            <li>If any tests fail, the console will show detailed error information</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h3>🔗 Quick Links</h3>
+        <button onclick="window.open('http://127.0.0.1:8080', '_blank')">Open Budget App</button>
+        <button onclick="window.open('http://127.0.0.1:8080/analytics', '_blank')">Open Analytics Page</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>🧪 API Tests</h3>
+        <button onclick="testAPI()">Test All API Endpoints</button>
+        <button onclick="testTrendsAPI()">Test Monthly Trends API</button>
+        <button onclick="testCategoriesAPI()">Test Categories API</button>
+        <div id="api-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>📊 Chart Data Tests</h3>
+        <button onclick="testAllCategories()">Test "All Categories" Mode</button>
+        <button onclick="testHealthCategory()">Test "Health" Category</button>
+        <button onclick="testEmptyCategory()">Test Empty Category (Food)</button>
+        <div id="chart-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>🖥️ Console Output</h3>
+        <button onclick="clearConsole()">Clear Console</button>
+        <div id="console-output"></div>
+    </div>
+
+    <script>
+        // Capture console output
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        const consoleOutput = document.getElementById('console-output');
+        
+        function addToConsole(level, args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            consoleOutput.textContent += `[${timestamp}] ${level.toUpperCase()}: ${message}\n`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole('log', args);
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole('error', args);
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole('warn', args);
+        };
+        
+        function clearConsole() {
+            consoleOutput.textContent = '';
+        }
+        
+        function addResult(containerId, type, message) {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            container.appendChild(div);
+        }
+        
+        async function testAPI() {
+            const resultsContainer = document.getElementById('api-results');
+            resultsContainer.innerHTML = '';
+            
+            const tests = [
+                { url: 'http://127.0.0.1:8080/api/categories', name: 'Categories' },
+                { url: 'http://127.0.0.1:8080/api/trends/monthly?category=all&start_date=2025-01-01&end_date=2025-11-26', name: 'Monthly Trends (All)' },
+                { url: 'http://127.0.0.1:8080/api/trends/monthly?category=health&start_date=2025-01-01&end_date=2025-11-26', name: 'Monthly Trends (Health)' },
+                { url: 'http://127.0.0.1:8080/api/category/budget?category=health', name: 'Budget API' }
+            ];
+            
+            for (const test of tests) {
+                try {
+                    console.log(`Testing ${test.name}...`);
+                    const response = await fetch(test.url);
+                    const data = await response.json();
+                    
+                    if (response.ok && data.success) {
+                        addResult('api-results', 'success', `✅ ${test.name}: OK`);
+                        console.log(`${test.name} response:`, data);
+                    } else {
+                        addResult('api-results', 'error', `❌ ${test.name}: ${data.error || 'Failed'}`);
+                        console.error(`${test.name} failed:`, data);
+                    }
+                } catch (error) {
+                    addResult('api-results', 'error', `❌ ${test.name}: ${error.message}`);
+                    console.error(`${test.name} error:`, error);
+                }
+            }
+        }
+        
+        async function testTrendsAPI() {
+            const resultsContainer = document.getElementById('api-results');
+            resultsContainer.innerHTML = '';
+            
+            try {
+                console.log('Testing monthly trends API structure...');
+                const response = await fetch('http://127.0.0.1:8080/api/trends/monthly?category=all&start_date=2025-01-01&end_date=2025-11-26');
+                const data = await response.json();
+                
+                if (!data.success || !data.data) {
+                    throw new Error('API returned invalid response');
+                }
+                
+                const trends = data.data;
+                const requiredFields = ['months', 'expenses', 'income'];
+                
+                for (const field of requiredFields) {
+                    if (!trends[field] || !Array.isArray(trends[field])) {
+                        throw new Error(`Missing or invalid field: ${field}`);
+                    }
+                }
+                
+                if (trends.months.length !== trends.expenses.length || trends.months.length !== trends.income.length) {
+                    throw new Error('Array length mismatch');
+                }
+                
+                addResult('api-results', 'success', `✅ Monthly Trends API: Structure valid (${trends.months.length} data points)`);
+                console.log('Trends API structure test passed:', trends);
+                
+            } catch (error) {
+                addResult('api-results', 'error', `❌ Monthly Trends API: ${error.message}`);
+                console.error('Trends API test failed:', error);
+            }
+        }
+        
+        async function testCategoriesAPI() {
+            const resultsContainer = document.getElementById('api-results');
+            resultsContainer.innerHTML = '';
+            
+            try {
+                console.log('Testing categories API...');
+                const response = await fetch('http://127.0.0.1:8080/api/categories');
+                const data = await response.json();
+                
+                if (!data.success || !data.data) {
+                    throw new Error('API returned invalid response');
+                }
+                
+                if (!Array.isArray(data.data)) {
+                    throw new Error('Categories data is not an array');
+                }
+                
+                addResult('api-results', 'success', `✅ Categories API: ${data.data.length} categories found`);
+                console.log('Categories API test passed:', data.data);
+                
+            } catch (error) {
+                addResult('api-results', 'error', `❌ Categories API: ${error.message}`);
+                console.error('Categories API test failed:', error);
+            }
+        }
+        
+        async function testAllCategories() {
+            await testChartMode('all', 'All Categories');
+        }
+        
+        async function testHealthCategory() {
+            await testChartMode('health', 'Health Category');
+        }
+        
+        async function testEmptyCategory() {
+            await testChartMode('food', 'Food Category (Empty)');
+        }
+        
+        async function testChartMode(category, name) {
+            const resultsContainer = document.getElementById('chart-results');
+            
+            try {
+                console.log(`Testing chart mode: ${name}`);
+                
+                // Simulate the chart update logic
+                const params = new URLSearchParams({
+                    category: category,
+                    start_date: '2025-01-01',
+                    end_date: '2025-11-26'
+                });
+                
+                const response = await fetch(`http://127.0.0.1:8080/api/trends/monthly?${params}`);
+                const result = await response.json();
+                
+                console.log(`${name} API result:`, result);
+                
+                if (result.success && result.data) {
+                    const trendsData = result.data;
+                    
+                    if (trendsData.months.length === 0) {
+                        addResult('chart-results', 'warning', `⚠️ ${name}: No data (empty arrays) - should show no-data message`);
+                    } else {
+                        addResult('chart-results', 'success', `✅ ${name}: ${trendsData.months.length} data points`);
+                    }
+                } else {
+                    addResult('chart-results', 'error', `❌ ${name}: API failed - ${result.error || 'Unknown error'}`);
+                }
+                
+            } catch (error) {
+                addResult('chart-results', 'error', `❌ ${name}: ${error.message}`);
+                console.error(`${name} test failed:`, error);
+            }
+        }
+        
+        // Run initial test
+        console.log('🧪 Analytics Test Page Loaded');
+        console.log('Click the test buttons to validate analytics functionality');
+    </script>
+</body>
+</html>

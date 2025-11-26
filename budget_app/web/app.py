@@ -9,6 +9,7 @@ import os
 import json
 from datetime import datetime, date
 from typing import Dict, List, Any
+from sqlalchemy import func
 
 from ..core.database import (
     get_transactions,
@@ -199,6 +200,45 @@ def create_app():
             
             data = get_monthly_trends_data(start_date, end_date, category)
             return jsonify({'success': True, 'data': data})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/category/budget')
+    def api_category_budget():
+        """Get budget information for a specific category."""
+        try:
+            category_name = request.args.get('category')
+            if not category_name or category_name == 'all':
+                return jsonify({'success': False, 'error': 'Category name required'})
+            
+            # Get category budget information
+            from ..core.database import get_db
+            from ..core.models import Category
+            
+            with get_db() as db:
+                category = db.query(Category).filter(
+                    func.lower(Category.name) == category_name.lower()
+                ).first()
+                
+                if category:
+                    return jsonify({
+                        'success': True, 
+                        'data': {
+                            'category_name': category.name,
+                            'monthly_budget': float(category.monthly_budget or 0.0),
+                            'budget_period': category.budget_period or 'monthly'
+                        }
+                    })
+                else:
+                    return jsonify({
+                        'success': True, 
+                        'data': {
+                            'category_name': category_name,
+                            'monthly_budget': 0.0,
+                            'budget_period': 'monthly'
+                        }
+                    })
+                    
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
     

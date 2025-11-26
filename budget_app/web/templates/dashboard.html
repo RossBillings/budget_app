@@ -357,7 +357,7 @@ function displayTransactions(transactions) {
             <td>${new Date(transaction.date).toLocaleDateString()}</td>
             <td>${transaction.description}</td>
             <td><span class="badge bg-secondary">${transaction.category}</span></td>
-            <td class="${transaction.amount >= 0 ? 'text-danger' : 'text-success'}">
+            <td class="${transaction.amount < 0 ? 'text-danger' : 'text-success'}">
                 ${transaction.amount >= 0 ? '+' : ''}$${transaction.amount.toFixed(2)}
             </td>
             <td>

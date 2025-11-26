@@ -256,7 +256,7 @@ function displayTransactions(transactions) {
                     ${transaction.description.startsWith('+') ? ' <i class="fas fa-lock fa-xs" title="Manually set"></i>' : ''}
                 </span>
             </td>
-            <td class="${transaction.amount >= 0 ? 'text-danger' : 'text-success'}">
+            <td class="${transaction.amount < 0 ? 'text-danger' : 'text-success'}">
                 ${transaction.amount >= 0 ? '+' : ''}${BudgetApp.formatCurrency(transaction.amount)}
             </td>
             <td><small class="text-muted">${transaction.source}</small></td>
@@ -387,7 +387,7 @@ function viewTransaction(id) {
                             </div>
                             <div class="col-md-6">
                                 <strong>Amount:</strong><br>
-                                <span class="${transaction.amount >= 0 ? 'text-danger' : 'text-success'}">
+                                <span class="${transaction.amount < 0 ? 'text-danger' : 'text-success'}">
                                     ${transaction.amount >= 0 ? '+' : ''}${BudgetApp.formatCurrency(transaction.amount)}
                                 </span>
                             </div>

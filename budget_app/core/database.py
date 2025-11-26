@@ -162,14 +162,14 @@ def _preprocess_csv_row(row: Dict[str, str]) -> Dict[str, str]:
     
     # Handle Capital One format (has Debit/Credit columns)
     if 'Debit' in row and 'Credit' in row:
-        # Use debit amount or negative credit amount
+        # Debits are expenses (negative), Credits are income/refunds (positive)
         debit = row.get('Debit', '').strip()
         credit = row.get('Credit', '').strip()
         
         if debit:
-            processed_row['Amount'] = debit
+            processed_row['Amount'] = f"-{debit}"  # Debits are negative (expenses)
         elif credit:
-            processed_row['Amount'] = f"-{credit}"
+            processed_row['Amount'] = credit  # Credits are positive (income/refunds)
         else:
             processed_row['Amount'] = "0"
             
@@ -195,13 +195,8 @@ def _preprocess_csv_row(row: Dict[str, str]) -> Dict[str, str]:
     
     # Handle USAA format (has single Amount column with Date)
     elif 'Amount' in row and 'Date' in row:
-        try:
-            amount_val = float(row['Amount'])
-            # Invert the sign for USAA input (their format is opposite)
-            amount_val = -amount_val
-            processed_row['Amount'] = str(amount_val)
-        except ValueError:
-            processed_row['Amount'] = row['Amount']
+        # USAA amounts are already in correct sign convention (negative for expenses, positive for income)
+        processed_row['Amount'] = row.get('Amount', '0').strip()
             
         processed_row['Transaction Date'] = row.get('Date', '').strip()
         processed_row['Description'] = row.get('Description', '').strip()
@@ -656,10 +651,11 @@ def get_spending_patterns(
                 end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
             base_query = base_query.filter(Transaction.transaction_date <= end_date)
         
-        # Day of week analysis
-        day_of_week_query = base_query.with_entities(
+        # Day of week analysis - focus on expenses (negative amounts)
+        expense_query = base_query.filter(Transaction.amount < 0)
+        day_of_week_query = expense_query.with_entities(
             func.strftime('%w', Transaction.transaction_date).label('day_of_week'),
-            func.sum(Transaction.amount).label('total')
+            func.sum(func.abs(Transaction.amount)).label('total')  # Convert to positive spending amounts
         ).group_by(func.strftime('%w', Transaction.transaction_date))
         
         day_results = day_of_week_query.all()
@@ -672,14 +668,15 @@ def get_spending_patterns(
         # In a real app, you'd have actual timestamps
         time_patterns = [0] * 24  # Initialize array for 24 hours
         
-        # Get all transactions for time analysis
-        all_transactions = base_query.all()
+        # Get all expense transactions for time analysis
+        all_transactions = expense_query.all()
         for txn in all_transactions:
             # Use a hash of the transaction data to simulate time distribution
             # This creates a pseudo-random but consistent distribution
             hash_value = hash(f"{txn.id}{txn.description}{txn.amount}")
             hour = abs(hash_value) % 24
-            time_patterns[hour] += float(txn.amount) if txn.amount > 0 else 0
+            # All transactions here are expenses (negative), convert to positive spending
+            time_patterns[hour] += abs(float(txn.amount))
         
         return {
             'day_of_week': day_patterns,
@@ -964,13 +961,13 @@ def get_weekly_spending_data(
         if category and category != 'all':
             base_query = base_query.filter(Transaction.category == category)
         
-        # Only positive amounts (expenses)
-        base_query = base_query.filter(Transaction.amount > 0)
+        # Only negative amounts (expenses)
+        base_query = base_query.filter(Transaction.amount < 0)
         
         # Group by week using SQLite's date functions
         weekly_query = base_query.with_entities(
             func.strftime('%Y-W%W', Transaction.transaction_date).label('week'),
-            func.sum(Transaction.amount).label('total'),
+            func.sum(func.abs(Transaction.amount)).label('total'),  # Use absolute value for expense totals
             func.min(Transaction.transaction_date).label('week_start')
         ).group_by(func.strftime('%Y-W%W', Transaction.transaction_date)).order_by('week_start')
         
@@ -1032,7 +1029,7 @@ def get_category_budget_comparison(
             # Get spending for this category in the date range
             spending_query = db.query(func.sum(Transaction.amount)).filter(
                 Transaction.category == category.name.lower(),
-                Transaction.amount > 0  # Only expenses
+                Transaction.amount < 0  # Only expenses (negative amounts)
             )
             
             if start_date:
@@ -1040,7 +1037,9 @@ def get_category_budget_comparison(
             if end_date:
                 spending_query = spending_query.filter(Transaction.transaction_date <= end_date)
             
-            total_spent = spending_query.scalar() or 0.0
+            total_spent_raw = spending_query.scalar() or 0.0
+            # Convert negative expense total to positive for budget comparison
+            total_spent = abs(total_spent_raw)
             
             # Calculate budget for the period
             monthly_budget = category.monthly_budget or 0.0

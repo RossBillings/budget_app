@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; }
+        .error { background: #ffe6e6; border: 1px solid #ff9999; }
+        .success { background: #e6ffe6; border: 1px solid #99ff99; }
+    </style>
+</head>
+<body>
+    <h1>🐛 Analytics Error Debug Test</h1>
+    <p>This page simulates the exact analytics function calls to find the error.</p>
+    
+    <button onclick="runFullTest()">Run Full Analytics Test</button>
+    <button onclick="clearLogs()">Clear Logs</button>
+    
+    <div id="logs"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log ${type}`;
+            logDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logsDiv.appendChild(logDiv);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+        
+        // Mock BudgetApp object
+        const BudgetApp = {
+            showNotification: (msg, type) => log(`NOTIFICATION: ${msg} (${type})`, 'error'),
+            formatCurrency: (amount) => `$${amount.toFixed(2)}`
+        };
+        
+        // Simulate the exact updateAnalytics function from the analytics page
+        function updateAnalytics(data) {
+            log('=== updateAnalytics called ===');
+            log(`Data: ${JSON.stringify(data, null, 2)}`);
+            log(`Data type: ${typeof data}`);
+            log(`Data is null: ${data === null}`);
+            log(`Data is undefined: ${data === undefined}`);
+            
+            try {
+                // Validate data
+                if (!data) {
+                    log('No data provided to updateAnalytics', 'error');
+                    BudgetApp.showNotification('No analytics data available', 'warning');
+                    return;
+                }
+                
+                // Update summary cards with error catching
+                try {
+                    log('About to call updateSummaryCards...');
+                    updateSummaryCards(data);
+                    log('Summary cards updated successfully', 'success');
+                } catch (error) {
+                    log(`Error in updateSummaryCards: ${error.message}`, 'error');
+                    throw new Error('Summary cards update failed: ' + error.message);
+                }
+                
+                // Update category breakdown with error catching
+                try {
+                    log('About to call updateCategoryBreakdownChart...');
+                    updateCategoryBreakdownChart(data);
+                    log('Category breakdown chart updated successfully', 'success');
+                } catch (error) {
+                    log(`Error in updateCategoryBreakdownChart: ${error.message}`, 'error');
+                    throw new Error('Category breakdown update failed: ' + error.message);
+                }
+                
+                // Update top categories with error catching
+                try {
+                    log('About to call updateTopCategories...');
+                    updateTopCategories(data);
+                    log('Top categories updated successfully', 'success');
+                } catch (error) {
+                    log(`Error in updateTopCategories: ${error.message}`, 'error');
+                    throw new Error('Top categories update failed: ' + error.message);
+                }
+                
+                log('All analytics components updated successfully', 'success');
+                
+            } catch (error) {
+                log(`Error updating analytics: ${error.message}`, 'error');
+                log(`Error stack: ${error.stack}`, 'error');
+                BudgetApp.showNotification('Error displaying analytics data: ' + error.message, 'danger');
+            }
+        }
+        
+        // Simulate updateSummaryCards function
+        function updateSummaryCards(data) {
+            let totalExpenses = 0;
+            let totalIncome = 0;
+            
+            log(`updateSummaryCards received data type: ${typeof data}`);
+            log(`Data is null: ${data === null}`);
+            log(`Data is array: ${Array.isArray(data)}`);
+            
+            if (!data) {
+                log('No data provided to updateSummaryCards - using zero values');
+            } else if (Array.isArray(data)) {
+                log(`Processing ${data.length} categories for summary cards`);
+                
+                data.forEach((category, categoryIndex) => {
+                    log(`Processing summary category ${categoryIndex}: ${JSON.stringify(category, null, 2)}`);
+                    
+                    if (!category) {
+                        log(`Category ${categoryIndex} is null/undefined`, 'error');
+                        return;
+                    }
+                    
+                    if (!category.data) {
+                        log(`Category ${categoryIndex} (${category.category}) has no data property`);
+                        return;
+                    }
+                    
+                    if (!Array.isArray(category.data)) {
+                        log(`Category ${categoryIndex} (${category.category}) data is not an array: ${category.data}`, 'error');
+                        return;
+                    }
+                    
+                    log(`Category ${categoryIndex} (${category.category}) has ${category.data.length} data items`);
+                    
+                    category.data.forEach((item, itemIndex) => {
+                        if (!item) {
+                            log(`Item ${itemIndex} in category ${category.category} is null`, 'error');
+                            return;
+                        }
+                        
+                        const amount = parseFloat(item.total) || 0;
+                        log(`Item ${itemIndex} in ${category.category}: amount=${amount}`);
+                        
+                        if (category.category && category.category.toLowerCase() === 'income') {
+                            totalIncome += Math.abs(amount);
+                        } else if (amount < 0) {
+                            totalExpenses += Math.abs(amount);
+                        } else if (amount > 0) {
+                            totalIncome += amount;
+                        }
+                    });
+                });
+            } else {
+                log(`updateSummaryCards received unexpected data format: ${typeof data}`, 'error');
+            }
+            
+            log(`Final totals - Expenses: ${totalExpenses}, Income: ${totalIncome}`, 'success');
+        }
+        
+        // Mock chart object
+        const mockChart = {
+            data: { labels: [], datasets: [{ data: [] }] },
+            update: () => log('Chart updated successfully', 'success')
+        };
+        
+        // Simulate updateCategoryBreakdownChart function
+        function updateCategoryBreakdownChart(data) {
+            log(`updateCategoryBreakdownChart called with data type: ${typeof data}`);
+            log(`Data is array: ${Array.isArray(data)}`);
+            
+            if (!data) {
+                log('No data provided to updateCategoryBreakdownChart');
+                return;
+            }
+            
+            if (Array.isArray(data)) {
+                log(`Processing array with ${data.length} items`);
+                
+                const labels = data.map((cat, index) => {
+                    log(`Processing category ${index}: ${JSON.stringify(cat, null, 2)}`);
+                    if (!cat) {
+                        log(`Category ${index} is null/undefined`, 'error');
+                        return 'Unknown';
+                    }
+                    return cat.category || 'Unknown';
+                });
+                
+                const values = data.map((cat, index) => {
+                    log(`Processing values for category ${index}`);
+                    if (!cat) {
+                        log(`Category ${index} is null/undefined for values`, 'error');
+                        return 0;
+                    }
+                    
+                    if (cat.data && Array.isArray(cat.data)) {
+                        log(`Category ${index} has ${cat.data.length} data items`);
+                        return cat.data.reduce((sum, item) => {
+                            if (!item) {
+                                log(`Item in category ${index} is null`, 'error');
+                                return sum;
+                            }
+                            return sum + Math.abs(item.total || 0);
+                        }, 0);
+                    } else {
+                        log(`Category ${index} has no data array: ${cat.data}`);
+                        return 0;
+                    }
+                });
+                
+                log(`Final labels: ${JSON.stringify(labels)}`, 'success');
+                log(`Final values: ${JSON.stringify(values)}`, 'success');
+                
+                // Mock chart update
+                mockChart.data.labels = labels;
+                mockChart.data.datasets[0].data = values;
+                mockChart.update();
+            } else {
+                log(`updateCategoryBreakdownChart received non-array data: ${typeof data}`, 'error');
+            }
+        }
+        
+        // Simulate updateTopCategories function
+        function updateTopCategories(data) {
+            log(`updateTopCategories called with data type: ${typeof data}`);
+            
+            if (!data) {
+                log('No data provided to updateTopCategories');
+                return;
+            }
+            
+            if (Array.isArray(data)) {
+                const sortedCategories = data
+                    .map(cat => ({
+                        name: cat.category || 'Unknown',
+                        total: cat.data && Array.isArray(cat.data) ? 
+                            cat.data.reduce((sum, item) => sum + Math.abs(item.total || 0), 0) : 0
+                    }))
+                    .sort((a, b) => b.total - a.total)
+                    .slice(0, 5);
+                
+                if (sortedCategories.length === 0) {
+                    log('No categories found');
+                    return;
+                }
+                
+                log(`Top categories: ${JSON.stringify(sortedCategories, null, 2)}`, 'success');
+            } else {
+                log(`updateTopCategories received non-array data: ${typeof data}`, 'error');
+            }
+        }
+        
+        // Test function that fetches real data and processes it
+        async function runFullTest() {
+            try {
+                clearLogs();
+                log('=== Starting Full Analytics Test ===');
+                
+                log('Fetching data from API...');
+                const response = await fetch('http://127.0.0.1:8081/api/expenses/aggregated?category=all&start_date=2025-01-01&end_date=2025-11-26');
+                
+                log(`API Response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const apiData = await response.json();
+                log(`API Response: ${JSON.stringify(apiData, null, 2)}`);
+                
+                if (!apiData) {
+                    throw new Error('API response is null');
+                }
+                
+                if (!apiData.success) {
+                    throw new Error(`API returned error: ${apiData.error || 'Unknown error'}`);
+                }
+                
+                if (apiData.data === null) {
+                    log('API returned success but data.data is null', 'error');
+                    return;
+                }
+                
+                log('About to call updateAnalytics with API data...');
+                updateAnalytics(apiData.data);
+                
+                log('=== Test Completed Successfully ===', 'success');
+                
+            } catch (error) {
+                log(`=== Test Failed ===`, 'error');
+                log(`Error: ${error.message}`, 'error');
+                log(`Stack: ${error.stack}`, 'error');
+            }
+        }
+        
+        log('Debug test page loaded. Click "Run Full Analytics Test" to start.');
+    </script>
+</body>
+</html>
