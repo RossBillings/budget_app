@@ -208,16 +208,38 @@ let dayOfWeekChart = null;
 let weeklyTrendChart = null;
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Analytics page DOMContentLoaded');
+    
     BudgetApp.setCurrentPage('analytics');
+    
+    // Check if Chart.js is available
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded!');
+        BudgetApp.showNotification('Chart.js library failed to load', 'danger');
+        return;
+    }
     
     // Initialize global filters
     BudgetApp.initializeGlobalFilters();
     BudgetApp.applyGlobalFiltersToPage();
     
+    // Set default date range
+    document.getElementById('date-range').value = 'this-year';
+    handleDateRangeChange();
+    
+    // Initialize charts first
     setupCharts();
+    
+    // Then load data
     loadCategories();
-    loadAnalytics();
     setupEventListeners();
+    
+    // Load analytics data last (after date range is set)
+    setTimeout(() => {
+        loadAnalytics();
+    }, 100);
+    
+    console.log('Analytics initialization complete');
     
     // Listen for global filter changes from other pages
     window.addEventListener('globalFiltersChanged', function(event) {
@@ -309,7 +331,7 @@ function handleDateRangeChange() {
 
 function resetFilters() {
     document.getElementById('category-filter').value = 'all';
-    document.getElementById('date-range').value = 'last-month';
+    document.getElementById('date-range').value = 'this-year';
     handleDateRangeChange();
 }
 
@@ -346,73 +368,129 @@ function updateCategoryFilter(categories) {
 }
 
 function loadAnalytics() {
+    const categoryValue = document.getElementById('category-filter').value;
+    const startDateValue = document.getElementById('start-date').value;
+    const endDateValue = document.getElementById('end-date').value;
+    
+    console.log('Loading analytics with params:', {
+        category: categoryValue,
+        start_date: startDateValue,
+        end_date: endDateValue
+    });
+    
+    // Ensure we have valid dates
+    if (!startDateValue || !endDateValue) {
+        console.error('Missing date values');
+        BudgetApp.showNotification('Please select valid start and end dates', 'warning');
+        return;
+    }
+    
     const params = new URLSearchParams({
-        category: document.getElementById('category-filter').value,
-        start_date: document.getElementById('start-date').value,
-        end_date: document.getElementById('end-date').value
+        category: categoryValue,
+        start_date: startDateValue,
+        end_date: endDateValue
     });
 
     BudgetApp.showLoadingOverlay('Loading analytics...');
 
+    console.log('Making API call to:', `/api/expenses/aggregated?${params}`);
+
     // Load aggregated data
     fetch(`/api/expenses/aggregated?${params}`)
-        .then(response => response.json())
+        .then(response => {
+            console.log('API response status:', response.status);
+            return response.json();
+        })
         .then(data => {
             BudgetApp.hideLoadingOverlay();
+            console.log('API response data:', data);
+            
             if (data.success) {
                 updateAnalytics(data.data);
             } else {
-                BudgetApp.showNotification('Failed to load analytics', 'danger');
+                console.error('API returned error:', data.error);
+                BudgetApp.showNotification('Failed to load analytics: ' + (data.error || 'Unknown error'), 'danger');
             }
         })
         .catch(error => {
             BudgetApp.hideLoadingOverlay();
+            console.error('Analytics API error:', error);
             BudgetApp.showNotification('Error loading analytics: ' + error.message, 'danger');
         });
 }
 
 function updateAnalytics(data) {
-    // Update summary cards
-    updateSummaryCards(data);
+    console.log('updateAnalytics called with data:', data);
     
-    // Update charts
-    updateMonthlyTrendsChart(data);
-    updateCategoryBreakdownChart(data);
-    updateTopCategories(data);
-    updateBudgetComparison(data);
-    updateSpendingPatterns(data);
+    try {
+        // Update summary cards
+        updateSummaryCards(data);
+        console.log('Summary cards updated');
+        
+        // Update charts
+        updateMonthlyTrendsChart(data);
+        console.log('Monthly trends chart updated');
+        
+        updateCategoryBreakdownChart(data);
+        console.log('Category breakdown chart updated');
+        
+        updateTopCategories(data);
+        console.log('Top categories updated');
+        
+        updateBudgetComparison(data);
+        console.log('Budget comparison updated');
+        
+        updateSpendingPatterns(data);
+        console.log('Spending patterns updated');
+        
+        console.log('All analytics components updated successfully');
+        
+    } catch (error) {
+        console.error('Error updating analytics:', error);
+        BudgetApp.showNotification('Error displaying analytics data: ' + error.message, 'danger');
+    }
 }
 
 function updateSummaryCards(data) {
     let totalExpenses = 0;
     let totalIncome = 0;
     
+    console.log('updateSummaryCards received data:', data);
+    
     if (Array.isArray(data)) {
         // Multiple categories
         data.forEach(category => {
-            if (category.data) {
+            if (category.data && Array.isArray(category.data)) {
                 category.data.forEach(item => {
-                    if (item.total > 0) {
-                        totalExpenses += item.total;
-                    } else {
-                        totalIncome += Math.abs(item.total);
+                    const amount = parseFloat(item.total) || 0;
+                    if (category.category && category.category.toLowerCase() === 'income') {
+                        // Income category - treat as income even if positive
+                        totalIncome += Math.abs(amount);
+                    } else if (amount > 0) {
+                        totalExpenses += amount;
+                    } else if (amount < 0) {
+                        totalIncome += Math.abs(amount);
                     }
                 });
             }
         });
-    } else {
-        // Single category
+    } else if (Array.isArray(data)) {
+        // Single category array
         data.forEach(item => {
-            if (item.total > 0) {
-                totalExpenses += item.total;
-            } else {
-                totalIncome += Math.abs(item.total);
+            const amount = parseFloat(item.total) || 0;
+            if (amount > 0) {
+                totalExpenses += amount;
+            } else if (amount < 0) {
+                totalIncome += Math.abs(amount);
             }
         });
     }
     
+    console.log('Calculated totals - Expenses:', totalExpenses, 'Income:', totalIncome);
+    
     const netAmount = totalIncome - totalExpenses;
-    const avgMonthly = totalExpenses / 12; // Simple average
+    const monthsInPeriod = calculateMonthsInPeriod();
+    const avgMonthly = monthsInPeriod > 0 ? totalExpenses / monthsInPeriod : 0;
     
     document.getElementById('total-expenses').textContent = BudgetApp.formatCurrency(totalExpenses);
     document.getElementById('total-income').textContent = BudgetApp.formatCurrency(totalIncome);
@@ -420,10 +498,34 @@ function updateSummaryCards(data) {
     document.getElementById('avg-monthly').textContent = BudgetApp.formatCurrency(avgMonthly);
 }
 
+function calculateMonthsInPeriod() {
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    
+    if (!startDate || !endDate) return 1;
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    const yearDiff = end.getFullYear() - start.getFullYear();
+    const monthDiff = end.getMonth() - start.getMonth();
+    
+    return Math.max(1, yearDiff * 12 + monthDiff + 1);
+}
+
 function setupCharts() {
-    // Monthly trends chart
-    const monthlyCtx = document.getElementById('monthly-trends-chart').getContext('2d');
-    monthlyTrendsChart = new Chart(monthlyCtx, {
+    try {
+        console.log('Setting up charts...');
+        
+        // Monthly trends chart
+        const monthlyCanvas = document.getElementById('monthly-trends-chart');
+        if (!monthlyCanvas) {
+            console.error('Monthly trends chart canvas not found');
+            return;
+        }
+        
+        const monthlyCtx = monthlyCanvas.getContext('2d');
+        monthlyTrendsChart = new Chart(monthlyCtx, {
         type: 'line',
         data: {
             labels: [],
@@ -597,6 +699,13 @@ function setupCharts() {
             }
         }
     });
+    
+    console.log('All charts initialized successfully');
+    
+    } catch (error) {
+        console.error('Error setting up charts:', error);
+        BudgetApp.showNotification('Error initializing charts: ' + error.message, 'danger');
+    }
 }
 
 function updateMonthlyTrendsChart(data) {

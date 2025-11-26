@@ -12,7 +12,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 import logging
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, case
 from sqlalchemy.orm import Session, Query
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
@@ -1134,8 +1134,8 @@ def get_monthly_trends_data(
         # Group by month and separate expenses/income
         monthly_query = base_query.with_entities(
             func.strftime('%Y-%m', Transaction.transaction_date).label('month'),
-            func.sum(func.case([(Transaction.amount > 0, Transaction.amount)], else_=0)).label('expenses'),
-            func.sum(func.case([(Transaction.amount < 0, func.abs(Transaction.amount))], else_=0)).label('income')
+            func.sum(case((Transaction.amount > 0, Transaction.amount), else_=0)).label('expenses'),
+            func.sum(case((Transaction.amount < 0, func.abs(Transaction.amount)), else_=0)).label('income')
         ).group_by(func.strftime('%Y-%m', Transaction.transaction_date)).order_by('month')
         
         results = monthly_query.all()

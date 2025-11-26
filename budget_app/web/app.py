@@ -5,7 +5,6 @@ Provides a modern web interface with intuitive data selections,
 real-time updates, and responsive design.
 """
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
-from flask_socketio import SocketIO, emit
 import os
 import json
 from datetime import datetime, date
@@ -36,8 +35,8 @@ def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
     
-    # Initialize SocketIO for real-time updates
-    socketio = SocketIO(app, cors_allowed_origins="*")
+    # Note: SocketIO removed for now due to permission issues
+    # socketio = SocketIO(app, cors_allowed_origins="*")
     
     @app.route('/')
     def dashboard():
@@ -235,12 +234,12 @@ def create_app():
             # Clean up uploaded file
             os.remove(file_path)
             
-            # Emit real-time update
-            socketio.emit('import_complete', {
-                'inserted': result['inserted'],
-                'duplicates': result['duplicates'],
-                'errors': result['errors']
-            })
+            # Real-time update removed for now
+            # socketio.emit('import_complete', {
+            #     'inserted': result['inserted'],
+            #     'duplicates': result['duplicates'],
+            #     'errors': result['errors']
+            # })
             
             return jsonify({
                 'success': True,
@@ -257,8 +256,8 @@ def create_app():
         try:
             success = delete_transaction(transaction_id)
             if success:
-                # Emit real-time update
-                socketio.emit('transaction_deleted', {'id': transaction_id})
+                # Real-time update removed for now
+                # socketio.emit('transaction_deleted', {'id': transaction_id})
                 return jsonify({'success': True, 'message': 'Transaction deleted'})
             else:
                 return jsonify({'success': False, 'error': 'Transaction not found'}), 404

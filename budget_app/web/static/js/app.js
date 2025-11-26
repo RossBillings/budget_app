@@ -16,50 +16,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
- * Initialize Socket.IO for real-time updates
+ * Initialize Socket.IO for real-time updates (disabled for now)
  */
 function initializeSocketIO() {
-    try {
-        socket = io();
-        
-        // Connection events
-        socket.on('connect', function() {
-            console.log('Connected to server');
-            showNotification('Connected to server', 'success');
-        });
-        
-        socket.on('disconnect', function() {
-            console.log('Disconnected from server');
-            showNotification('Disconnected from server', 'warning');
-        });
-        
-        // Import events
-        socket.on('import_complete', function(data) {
-            showNotification(
-                `Import complete: ${data.inserted} inserted, ${data.duplicates} duplicates`,
-                'success'
-            );
-            
-            // Refresh data if on dashboard
-            if (currentPage === 'dashboard') {
-                loadDashboardData();
-            }
-        });
-        
-        // Transaction events
-        socket.on('transaction_deleted', function(data) {
-            showNotification('Transaction deleted successfully', 'success');
-            
-            // Remove from UI if visible
-            const row = document.querySelector(`[data-transaction-id="${data.id}"]`);
-            if (row) {
-                row.remove();
-            }
-        });
-        
-    } catch (error) {
-        console.error('Socket.IO initialization failed:', error);
-    }
+    console.log('Socket.IO disabled - using polling for updates instead');
+    // Socket.IO temporarily disabled due to permission issues
+    // Will re-enable once proper SSL certificates are configured
 }
 
 /**
@@ -326,8 +288,8 @@ function initializeGlobalFilters() {
     // Set default dates if not already set
     if (!filters.startDate || !filters.endDate) {
         const today = new Date();
-        const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+        const startDate = new Date(today.getFullYear(), 0, 1); // Start of current year
+        const endDate = today; // Today
         
         setGlobalFilter('startDate', startDate.toISOString().split('T')[0]);
         setGlobalFilter('endDate', endDate.toISOString().split('T')[0]);
