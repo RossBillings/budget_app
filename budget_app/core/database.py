@@ -77,6 +77,7 @@ def import_transactions_from_csv(
     default_category: str = "misc",
     source: str = "csv",
     batch_size: int = 1000,
+    check_individual_duplicates: bool = True,
 ) -> Dict[str, int]:
     """
     Import transactions from a CSV file into the database with deduplication.
@@ -85,7 +86,8 @@ def import_transactions_from_csv(
         file_path: Path to the CSV file
         default_category: Default category if not specified in CSV
         source: Source identifier for the transactions
-        batch_size: Number of records to process in each batch
+        batch_size: Number of records to process in each batch (only used if check_individual_duplicates=False)
+        check_individual_duplicates: If True, check each transaction individually for duplicates
         
     Returns:
         Dict with counts of inserted, skipped, and duplicate transactions
@@ -100,6 +102,85 @@ def import_transactions_from_csv(
     if not Path(file_path).is_file():
         raise FileNotFoundError(f"CSV file not found: {file_path}")
     
+    result = {"inserted": 0, "skipped": 0, "duplicates": 0, "errors": 0}
+    
+    if check_individual_duplicates:
+        # Process transactions individually with immediate duplicate checking
+        result = _import_transactions_individually(file_path, default_category, source)
+    else:
+        # Use the original batch processing method
+        result = _import_transactions_batch(file_path, default_category, source, batch_size)
+    
+    logger.info(
+        f"Import complete. Inserted: {result['inserted']}, "
+        f"Duplicates: {result['duplicates']}, "
+        f"Skipped: {result['skipped']}, "
+        f"Errors: {result['errors']}"
+    )
+    return result
+
+
+def _import_transactions_individually(
+    file_path: str,
+    default_category: str,
+    source: str
+) -> Dict[str, int]:
+    """Import transactions one by one with individual duplicate checking."""
+    import csv
+    result = {"inserted": 0, "skipped": 0, "duplicates": 0, "errors": 0}
+    
+    with get_db() as db, open(file_path, "r", newline="") as f:
+        reader = csv.DictReader(f)
+        
+        for row_num, row in enumerate(reader, 1):
+            try:
+                # Create transaction from CSV row
+                txn = Transaction.from_csv_row(row, default_category=default_category)
+                txn.source = source
+                
+                # Check if this transaction already exists in the database
+                existing_transaction = db.query(Transaction).filter_by(
+                    dedupe_key=txn.dedupe_key
+                ).first()
+                
+                if existing_transaction:
+                    # Transaction already exists, skip it
+                    result["duplicates"] += 1
+                    logger.debug(
+                        f"Row {row_num}: Duplicate transaction skipped - "
+                        f"{txn.transaction_date} {txn.description} ${txn.amount}"
+                    )
+                    continue
+                
+                # Transaction is new, add it to the database
+                db.add(txn)
+                db.commit()  # Commit immediately for individual processing
+                result["inserted"] += 1
+                logger.debug(
+                    f"Row {row_num}: New transaction added - "
+                    f"{txn.transaction_date} {txn.description} ${txn.amount} ({txn.category})"
+                )
+                
+            except ValueError as e:
+                logger.warning(f"Row {row_num}: Skipping invalid row - {e}")
+                result["skipped"] += 1
+                db.rollback()
+            except Exception as e:
+                logger.error(f"Row {row_num}: Error processing transaction - {e}")
+                result["errors"] += 1
+                db.rollback()
+    
+    return result
+
+
+def _import_transactions_batch(
+    file_path: str,
+    default_category: str,
+    source: str,
+    batch_size: int
+) -> Dict[str, int]:
+    """Import transactions using the original batch processing method."""
+    import csv
     result = {"inserted": 0, "skipped": 0, "duplicates": 0, "errors": 0}
     
     with get_db() as db, open(file_path, "r", newline="") as f:
@@ -131,12 +212,6 @@ def import_transactions_from_csv(
             batch_result = _process_batch(db, batch)
             _update_result(result, batch_result)
     
-    logger.info(
-        f"Import complete. Inserted: {result['inserted']}, "
-        f"Duplicates: {result['duplicates']}, "
-        f"Skipped: {result['skipped']}, "
-        f"Errors: {result['errors']}"
-    )
     return result
 
 
@@ -150,11 +225,14 @@ def _process_batch(db: Session, batch: List[Transaction]) -> Dict[str, int]:
     try:
         # Get existing dedupe keys to avoid constraint violations
         dedupe_keys = {txn.dedupe_key for txn in batch}
-        existing_keys = set(
+        existing_key_results = (
             db.query(Transaction.dedupe_key)
             .filter(Transaction.dedupe_key.in_(dedupe_keys))
             .all()
         )
+        
+        # Extract the actual dedupe_key values from the query results
+        existing_keys = {row[0] for row in existing_key_results}
         
         # Remove duplicates within the batch itself
         seen_keys = set()

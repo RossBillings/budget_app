@@ -1,0 +1,272 @@
+# Budget App Category Configuration
+# This file defines how transactions are categorized based on description keywords
+# and how external categories (like Chase United) are mapped to internal categories
+
+# Category keyword patterns for automatic categorization
+# Each category contains a list of keywords that will trigger that categorization
+# Keywords are case-insensitive and support partial matching
+category_keywords:
+  
+  # Essential categories (checked first - highest priority)
+  required:
+    - "roundpoint"
+    - "mortgage"
+    
+  tithe:
+    - "horizon"
+    - "tithe.ly"
+    - "compassion international"
+    - "tithe"
+    
+  utilities:
+    - "baltimore gas"
+    - "verizon"
+    - "at&t"
+    - "electric"
+    - "water"
+    - "gas bill"
+    - "internet"
+    - "phone"
+    
+  # Financial categories
+  insurance:
+    - "healthy paws"
+    - "ohio national"
+    - "mass mutual"
+    - "usaa property and casualty insurance"
+    - "northwestern"
+    - "insurance"
+    - "allstate"
+    - "geico"
+    - "progressive"
+    
+  income:
+    - "istari"
+    - "istari federal"
+    - "istari federal pay akpf"
+    - "srectrade inc"
+    
+  transfer:
+    - "usaa transfer"
+    - "capital one payment"
+    - "capital one"
+    - "apple savings transfer"
+    - "transfer"
+    - "payment"
+    
+  retirement:
+    - "lpl financial"
+    
+  # Daily spending categories
+  dining:
+    - "iron rooster"
+    - "tst*iron rooster"
+    - "qdoba"
+    - "panera"
+    - "chickfila"
+    - "chick-fil-a"
+    - "chick fil a"  # matches cleaned version
+    - "starbucks"
+    - "5guys"
+    - "sonny"
+    - "hoffmans"
+    - "popeyes"
+    - "taco"
+    - "cracker"
+    - "el gran pollo"
+    - "elgranpollo"
+    - "alfeos"
+    - "chipotle"
+    - "bubbakoos"
+    - "papa johns"
+    - "papa"
+    - "pizza"
+    - "dunkin"
+    - "dunkin donuts"
+    - "restaurant"
+    - "mcdonalds"
+    - "burger"
+    - "ruth chris"
+    - "cheesecake"
+    - "texas roadhouse"
+    - "little ceasers"
+    
+  groceries:
+    - "wegmans"
+    - "weis"
+    - "santonis"
+    - "santoni s"  # matches cleaned version "santoni's"
+    - "wine post"
+    - "lidl"
+    - "aldi"
+    - "walmart"
+    - "wal mart"
+    - "costco"
+    - "safeway"
+    - "giant"
+    - "harris teeter"
+    - "food lion"
+    - "spring meadow farm"
+    
+  target:
+    - "target"
+    - "hobby lobby"
+    - "target.com"
+    - "hobbylobby"
+    - "amazon"
+    
+  home_supplies:
+    - "home depot"
+    - "lowes"
+    - "lawns"
+    - "homedepot"
+    
+  subscription:
+    - "applecom"
+    - "amazonprime"
+    - "netflix"
+    - "disney"
+    - "hulu"
+    - "spotify"
+    - "youtube"
+    - "youtube premium"
+    - "youtube.com"
+    - "apple.com"
+    - "google"
+    - "microsoft"
+    
+  gas:
+    - "royalfarms"
+    - "royal farms"
+    - "exxon"
+    - "wawa"
+    - "shell"
+    - "bp"
+    - "chevron"
+    - "gas station"
+    
+  automotive:
+    - "toyota"
+    - "auto"
+    - "car wash"
+    - "oil change"
+    - "tire"
+    - "mechanic"
+    - "driveezmd"  # tolls
+    
+  health:
+    - "equip"
+    - "valence nutra"
+    - "doctors supplement store"
+    - "sp bodybio inc"
+    - "revive"
+    - "walgreens"
+    - "cvs"
+    - "health"
+    - "pet insuran"
+    
+  # Special categories
+  bilbrowhomes:
+    - "bilbrowhomes"
+    - "bilbrow homes"
+    - "bobrow"
+    - "chase"
+    - "chase.com"
+    - "chase bank"
+    - "mr. cooper"
+    - "cooper"
+    - "mr cooper"
+    
+  entertainment:
+    - "fun zone"
+    - "deep creek funzone"
+    - "deep creek"
+    - "state park"
+    
+  shopping:
+    - "party city"
+    - "best buy"
+    - "kohl"
+    - "kohl s"  # matches cleaned version "kohl's"
+    - "old navy"
+    - "treering"
+    - "umbrella entertainmen"
+
+# External category mappings (e.g., from Chase United to internal categories)
+external_category_mappings:
+  
+  # Chase United format mappings
+  chase_united:
+    "groceries": "groceries"
+    "food & drink": "dining" 
+    "shopping": "target"
+    "gas": "gas"
+    "home": "home_supplies"
+    "travel": "automotive"
+    "entertainment": "entertainment"
+    "health & wellness": "health"
+    "personal": "misc"
+    "gifts & donations": "tithe"
+    "bills & utilities": "utilities"
+    "fees & charges": "misc"
+    "transfer": "transfer"
+    "payment": "transfer"
+  
+  # Capital One format mappings (if needed)
+  capital_one:
+    "merchandise": "target"
+    "gas/automotive": "gas"
+    "other services": "misc"
+    "other": "misc"
+    "payment/credit": "transfer"
+    "other travel": "automotive"
+    "phone/cable": "utilities"
+    "health care": "health"
+    
+  # USAA format mappings (if needed)  
+  usaa:
+    "category pending": "misc"
+    "credit card payment": "transfer"
+    "life insurance": "insurance"
+    "financial": "transfer"
+    "bills & utilities": "utilities"
+    "investments": "retirement"
+    "uncategorized": "misc"
+    "check": "transfer"
+    "mortgage & rent": "bilbrowhomes"
+    "auto payment": "automotive"
+    "charity": "tithe"
+    "television": "utilities"
+    "interest income": "income"
+    "gifts & donations": "tithe"
+    "mortgage payment": "bilbrowhomes"
+
+# Configuration settings
+settings:
+  # Default category for unmatched transactions
+  default_category: "misc"
+  
+  # Case sensitivity for keyword matching
+  case_sensitive: false
+  
+  # Priority order for category checking (first match wins)
+  category_priority:
+    - "required"
+    - "tithe"  
+    - "utilities"
+    - "insurance"
+    - "income"
+    - "transfer"
+    - "dining"
+    - "groceries"
+    - "automotive"
+    - "home_supplies"
+    - "target"
+    - "subscription"
+    - "gas"
+    - "bilbrowhomes"
+    - "health"
+    - "retirement"
+    - "entertainment"
+    - "shopping"
+    # misc is always last (default)

@@ -116,13 +116,76 @@ class Transaction(Base):
     def from_csv_row(cls, row: Dict[str, str], default_category: str = "misc") -> 'Transaction':
         """Create a Transaction from a CSV row dictionary."""
         try:
-            transaction_date = datetime.strptime(
-                row.get("Transaction Date", "").strip(), 
-                "%Y-%m-%d"
-            ).date()
-            amount = float(row.get("Amount", "0").strip())
-            description = row.get("Description", "").strip()
-            category = row.get("Category", default_category).strip().lower()
+            # Detect CSV format and extract data accordingly
+            if 'Debit' in row and 'Credit' in row:
+                # Capital One format: Transaction Date, Description, Debit, Credit
+                transaction_date_str = row.get("Transaction Date", "").strip()
+                description = row.get("Description", "").strip()
+                
+                # Handle debit/credit amounts - normalize to positive expenses, negative income
+                debit = row.get("Debit", "").strip()
+                credit = row.get("Credit", "").strip()
+                
+                if debit and debit != "0":
+                    # Debits are expenses - make them positive
+                    amount = float(debit)
+                elif credit and credit != "0":
+                    # Credits are income/refunds - make them negative (since they reduce spending)
+                    amount = -float(credit)
+                else:
+                    amount = 0.0
+                    
+                category = row.get("Category", default_category).strip().lower()
+                
+            elif 'Date' in row and 'Transaction Date' not in row:
+                # USAA format: Date, Description, Amount
+                transaction_date_str = row.get("Date", "").strip()
+                description = row.get("Description", "").strip()
+                # USAA amounts: make expenses positive (invert the negative amounts)
+                amount = abs(float(row.get("Amount", "0").strip()))
+                category = row.get("Category", default_category).strip().lower()
+                
+            elif 'Post Date' in row and 'Type' in row:
+                # Chase United format: Transaction Date, Post Date, Description, Category, Type, Amount, Memo
+                transaction_date_str = row.get("Transaction Date", "").strip()
+                description = row.get("Description", "").strip()
+                transaction_type = row.get("Type", "").strip()
+                raw_amount = float(row.get("Amount", "0").strip())
+                
+                # Chase CSV: Sales are negative (expenses), Returns are positive (refunds)
+                # We want: Expenses positive, Refunds negative
+                if transaction_type.lower() == 'return':
+                    # Returns should be negative (money back)
+                    amount = -abs(raw_amount)
+                else:
+                    # Sales/other transactions should be positive (money spent)
+                    amount = abs(raw_amount)
+                
+                # Use the provided category from Chase, but normalize it
+                chase_category = row.get("Category", "").strip()
+                if chase_category:
+                    # Map Chase categories to our standard categories
+                    category = cls._normalize_chase_category(chase_category)
+                else:
+                    category = default_category
+                    
+            else:
+                # Standard format: Transaction Date, Description, Amount, Category
+                transaction_date_str = row.get("Transaction Date", "").strip()
+                amount = float(row.get("Amount", "0").strip())
+                description = row.get("Description", "").strip()
+                category = row.get("Category", default_category).strip().lower()
+            
+            # Parse the date (handle different formats)
+            try:
+                # Try YYYY-MM-DD format first
+                transaction_date = datetime.strptime(transaction_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                try:
+                    # Try MM/DD/YYYY format (Chase uses this)
+                    transaction_date = datetime.strptime(transaction_date_str, "%m/%d/%Y").date()
+                except ValueError:
+                    raise ValueError(f"Unrecognized date format: {transaction_date_str}")
             
             # Generate dedupe key
             dedupe_key = cls.generate_dedupe_key(
@@ -142,6 +205,14 @@ class Transaction(Base):
             )
         except (ValueError, KeyError) as e:
             raise ValueError(f"Invalid CSV row data: {e}")
+    
+    @classmethod
+    def _normalize_chase_category(cls, chase_category: str) -> str:
+        """Normalize Chase United categories to our standard categories."""
+        from .category_config import get_category_config
+        
+        config = get_category_config()
+        return config.map_external_category(chase_category, 'chase_united')
     
     def __repr__(self) -> str:
         return (

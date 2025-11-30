@@ -1,55 +1,107 @@
-import pandas as pd
-import matplotlib
-matplotlib.use("Agg")  # Use a non-GUI backend
-import matplotlib.pyplot as plt
+#!/usr/bin/env python3
+
 import os
 import argparse
+import sys
+import csv
+from datetime import datetime
 
-def create_keyword_analysis(input_file, keyword):
-    # Step 1: Load the data
-    data = pd.read_csv(input_file)
+# Add the parent directory to Python path to import budget_app modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-    # Ensure the 'Description', 'Transaction Date', and 'Amount' columns exist
-    if 'Description' not in data.columns or 'Transaction Date' not in data.columns or 'Amount' not in data.columns:
-        raise ValueError("CSV must have 'Description', 'Transaction Date', and 'Amount' columns.")
+try:
+    from budget_app.core.models import Transaction, SessionLocal
+    from budget_app.core.database import get_db
+except ImportError as e:
+    print(f"Error importing budget_app modules: {e}")
+    print("Make sure you're running this script from the budget_app root directory")
+    sys.exit(1)
 
-    # Step 2: Filter rows containing the keyword
-    filtered_data = data[data['Description'].str.contains(keyword, case=False, na=False)]
+def create_keyword_analysis(keyword, output_dir="data/outputs/Output"):
+    print(f"Analyzing transactions for keyword: '{keyword}'")
+    
+    # Step 1: Load the data from database
+    db = SessionLocal()
+    try:
+        # Step 2: Query transactions containing the keyword from database
+        filtered_transactions = db.query(Transaction).filter(
+            Transaction.description.ilike(f'%{keyword}%')
+        ).all()
+        
+        if not filtered_transactions:
+            print(f"No transactions found containing keyword '{keyword}'.")
+            return
+        
+        print(f"Found {len(filtered_transactions)} transactions containing '{keyword}'")
+        
+        # Convert to list of dictionaries for CSV output
+        filtered_data = []
+        total_amount = 0.0
+        
+        for transaction in filtered_transactions:
+            row_data = {
+                'Description': transaction.description,
+                'Transaction Date': str(transaction.transaction_date),
+                'Amount': transaction.amount,
+                'Category': transaction.category,
+                'Source': transaction.source
+            }
+            filtered_data.append(row_data)
+            total_amount += transaction.amount
+        
+    except Exception as e:
+        print(f"Error querying database: {e}")
+        return
+    finally:
+        db.close()
 
     # Step 3: Save to a new CSV
-    output_file = f"Output/{keyword}_history.csv"
-    filtered_data.to_csv(output_file, index=False)
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, f"{keyword}_history.csv")
+    
+    # Write CSV manually
+    with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['Description', 'Transaction Date', 'Amount', 'Category', 'Source']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(filtered_data)
+    
     print(f"Filtered data saved to {output_file}")
-
-    # Step 4: Generate a graph
-    # Convert 'Transaction Date' to datetime for plotting
-    filtered_data.loc[:, 'Transaction Date'] = pd.to_datetime(filtered_data['Transaction Date'], errors='coerce')
-    filtered_data = filtered_data.dropna(subset=['Transaction Date'])  # Drop rows with invalid dates
-
-    # Plotting
-    plt.figure(figsize=(10, 6))
-    plt.bar(filtered_data['Transaction Date'], filtered_data['Amount'], label=f"Transactions for {keyword}")    
-    plt.title(f"{keyword} Transactions Over Time")
-    plt.xlabel("Date")
-    plt.ylabel("Amount")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-
-    # Save and show the plot
-    plt.savefig(f"Output/{keyword}_transactions_plot.png")
-    plt.show()
+    
+    # Step 4: Show summary statistics
+    avg_amount = total_amount / len(filtered_data)
+    print(f"\nSummary:")
+    print(f"Total transactions: {len(filtered_data)}")
+    print(f"Total amount: ${total_amount:.2f}")
+    print(f"Average amount: ${avg_amount:.2f}")
+    
+    # Show sample transactions
+    print(f"\nSample transactions (first 10):")
+    print(f"{'Date':<12} {'Amount':<10} {'Description'[:30]:<30}")
+    print("-" * 52)
+    for row in filtered_data[:10]:
+        desc_short = row['Description'][:27] + "..." if len(row['Description']) > 30 else row['Description']
+        print(f"{row['Transaction Date']:<12} ${row['Amount']:<9.2f} {desc_short:<30}")
+    
+    print(f"\nAnalysis complete for keyword '{keyword}'!")
 
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Analyze transactions for a specific keyword.")
-    parser.add_argument("input_file", type=str, help="Path to the input CSV file")
+    parser = argparse.ArgumentParser(
+        description="Analyze transactions for a specific keyword from the budget database."
+    )
     parser.add_argument("keyword", type=str, help="Keyword to filter transactions")
+    parser.add_argument(
+        "--output-dir", 
+        type=str, 
+        default="data/outputs/Output", 
+        help="Directory to save output files (default: data/outputs/Output)"
+    )
     args = parser.parse_args()
 
-    create_keyword_analysis(args.input_file, args.keyword)
+    create_keyword_analysis(args.keyword, args.output_dir)
 
 # Example Usage
-# python3 /Users/rossbillings/GitHub/budget_app/4-deep_keyword_analysis.py Expense_Inputs/cleaned_expenses2024.csv Target
-# ython3 /Users/rossbillings/GitHub/budget_app/4-deep_keyword_analysis.py Expense_Inputs/cleaned_expenses2025.csv Groceries
+# python3 scripts/4-deep_keyword_analysis.py Target
+# python3 scripts/4-deep_keyword_analysis.py Groceries --output-dir custom_output/

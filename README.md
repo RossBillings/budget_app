@@ -22,11 +22,14 @@ The Budget App is a comprehensive Python application designed to help you import
 
 ### Features
 - **SQLite Database**: All your financial data is stored in a single, portable SQLite database file (`budget.db`).
-- CSV Import & Cleanup: Import expense data from CSV files and automatically update your budget categories.  
-- Expense Tracking: Summarize expenses by category, compute remaining budgets, and calculate net income.  
-- Visualization: Generate attractive charts and tables using PrettyTable and Matplotlib.  
-- Miscellaneous Analysis: Focus on the “Misc” category, viewing both aggregated totals by month and detailed transaction listings.  
-- Graphical Interface: Launch a Tkinter GUI (`gui.py`) to orchestrate scripts and analyze transactions interactively.
+- **Smart Duplicate Detection**: Each transaction is checked individually for duplicates before insertion, preventing data duplication across multiple imports.
+- **Configurable Categorization**: YAML-based category configuration system - easily modify categorization rules without changing code.
+- **Multi-Format CSV Import**: Automatically detects and imports Capital One, USAA, and Chase United CSV formats with appropriate category mapping.
+- **Expense Tracking**: Summarize expenses by category, compute remaining budgets, and calculate net income.  
+- **Visualization**: Generate attractive charts and tables using PrettyTable and Matplotlib.  
+- **Advanced Analysis**: Focus on specific categories or keywords, with detailed transaction filtering and trend analysis.
+- **Modern CLI Interface**: Intuitive command-line tools for importing, reporting, and managing financial data.
+- **Graphical Interface**: Launch a Tkinter GUI (`gui.py`) to orchestrate scripts and analyze transactions interactively.
 
 ## Database Schema
 
@@ -100,8 +103,10 @@ pip install matplotlib prettytable SQLAlchemy Alembic python-dateutil
 - **Fixed SQLAlchemy session management**: Resolved detached instance errors in queries
 
 ### CSV Import Improvements
-- **Automatic categorization**: Enhanced keyword-based transaction categorization
-- **Duplicate handling**: Improved batch processing to handle duplicates within CSV files
+- **Enhanced duplicate detection**: Individual transaction checking with immediate feedback (default mode)
+- **Configurable categorization**: YAML-based category rules - no more hardcoded keywords!
+- **Multi-format support**: Auto-detection of Capital One, USAA, and Chase United CSV formats
+- **Flexible processing modes**: Choose between individual checking (precise) or batch processing (fast)
 - **Error recovery**: Better error messages and graceful handling of malformed data
 
 ### CLI Enhancements
@@ -124,7 +129,22 @@ python -m budget_app --help
 
 **Import Transactions:**
 ```bash
+# Import any supported CSV format (auto-detected with individual duplicate checking)
 python -m budget_app import <csv_file>
+
+# Import with specific source identifier
+python -m budget_app import <csv_file> --source chase_united
+
+# Use batch processing for large files (faster but less detailed feedback)
+python -m budget_app import <csv_file> --batch-mode --batch-size 1000
+
+# Examples
+python -m budget_app import data/inputs/Expense_Inputs/capone_transactions.csv
+python -m budget_app import data/inputs/Expense_Inputs/usaa_transactions.csv
+python -m budget_app import data/inputs/Expense_Inputs/Chaseunited_Activity20231124_20251124_20251125.CSV --source chase_united
+
+# Large file import with batch processing
+python -m budget_app import large_file.csv --batch-mode
 ```
 
 **View Categories:**
@@ -230,9 +250,16 @@ budget_app/
 │   │   └── budget_analysis_writer.py # Analysis writer
 │   ├── tests/                    # Unit tests
 │   └── alembic/                  # Database migrations
-├── scripts/                      # Standalone utility scripts
-│   ├── 1.5-expense_trends.py
-│   └── 4-deep_keyword_analysis.py
+├── scripts/                      # Standalone utility scripts (see scripts/README.md)
+│   ├── 1.5-expense_trends.py        # Analyze misc transactions for recategorization
+│   ├── 4-deep_keyword_analysis.py   # Find transactions by keyword, export to CSV
+│   ├── category_manager.py          # Comprehensive category analysis and updates
+│   ├── update_categories.py         # Quick manual transaction updates
+│   ├── manage_categories_config.py  # Manage YAML configuration file
+│   ├── recategorize_all_transactions.py  # Full database recategorization
+│   ├── apply_safe_recategorizations.py   # Apply safe improvements only
+│   ├── quick_category_commands.py   # Power user Python functions
+│   └── README.md                    # Complete scripts documentation
 ├── data/                         # Data files
 │   ├── inputs/                   # Input CSV files
 │   └── outputs/                  # Generated charts/reports
@@ -307,12 +334,123 @@ alembic upgrade head
 
 ### CSV Format Requirements
 
-The application supports two CSV formats:
+The application supports three CSV formats:
 
 1. **Capital One Format**: Columns include `Transaction Date`, `Description`, `Debit`, `Credit`
 2. **USAA Format**: Columns include `Date`, `Description`, `Amount`
+3. **Chase United Format**: Columns include `Transaction Date`, `Post Date`, `Description`, `Category`, `Type`, `Amount`, `Memo`
 
 The import process automatically detects the format and handles sign corrections appropriately.
+
+#### Transaction Sign Handling
+
+**All transaction amounts are normalized during import to ensure consistency:**
+
+- **Normal expenses** → **Positive amounts** (e.g., groceries: `+$50.00`)
+- **Refunds/returns** → **Negative amounts** (e.g., store return: `-$25.00`) 
+- **Income/credits** → **Negative amounts** (since they reduce net spending)
+
+This normalization happens regardless of the original CSV format:
+- **Capital One**: Debits (expenses) become positive, credits become negative
+- **Chase United**: Sales (expenses) become positive, returns become negative
+- **USAA**: Negative amounts become positive for expenses
+
+**Example transformation:**
+```
+Before: WEGMANS OWINGS MILLS #125 | $-303.56 (negative in CSV)
+After:  WEGMANS OWINGS MILLS #125 | $303.56  (positive expense)
+```
+
+#### Chase United Format Details
+
+The Chase United format includes pre-categorized transactions that are automatically mapped to your budget categories:
+
+- **Shopping** → target
+- **Groceries** → groceries  
+- **Food & Drink** → dining
+- **Gas** → gas
+- **Home** → home_supplies
+- **Travel** → automotive
+- **Entertainment** → misc
+- **Health & Wellness** → health
+- **Personal** → misc
+- **Gifts & Donations** → tithe
+- **Bills & Utilities** → utilities
+- **Transfer/Payment** → transfer
+
+The date format supports both MM/DD/YYYY (Chase format) and YYYY-MM-DD formats.
+
+## Category Configuration System
+
+The application uses a flexible YAML-based configuration system for transaction categorization, eliminating hardcoded rules and making it easy to customize categorization logic.
+
+### Configuration File: `config/categories.yaml`
+
+The main configuration file contains:
+
+- **Category Keywords**: Lists of keywords that trigger specific categories
+- **External Mappings**: How external categories (Chase, etc.) map to internal categories  
+- **Priority Rules**: Order in which categories are checked
+- **Settings**: Default category, case sensitivity, etc.
+
+### Managing Category Configuration
+
+```bash
+# View all categories and keywords
+python scripts/manage_categories_config.py list
+
+# View external category mappings  
+python scripts/manage_categories_config.py mappings
+
+# Add a new keyword to a category
+python scripts/manage_categories_config.py add --category utilities --keyword "comcast"
+
+# Remove a keyword from a category
+python scripts/manage_categories_config.py remove --category misc --keyword "old_keyword" 
+
+# Test categorization on a description
+python scripts/manage_categories_config.py test --description "NETFLIX MONTHLY"
+
+# Search for existing keywords
+python scripts/manage_categories_config.py search --search-term "target"
+
+# Interactive management mode
+python scripts/manage_categories_config.py interactive
+```
+
+### Configuration Benefits
+
+- **No Code Changes**: Modify categorization rules by editing YAML file
+- **Easy Maintenance**: Add/remove keywords without touching source code
+- **Consistent Logic**: All categorization uses the same rule engine
+- **Version Control**: Configuration changes are tracked in git
+- **Flexible Mappings**: Support for different external CSV formats
+
+## Scripts and Tools
+
+The `scripts/` folder contains powerful analysis and management tools. See **[scripts/README.md](scripts/README.md)** for complete documentation.
+
+### Quick Reference
+
+```bash
+# Analyze misc transactions for recategorization
+python scripts/1.5-expense_trends.py
+
+# Find all transactions containing a keyword  
+python scripts/4-deep_keyword_analysis.py "TARGET"
+
+# Comprehensive category management
+python scripts/category_manager.py interactive
+
+# Recategorize all transactions with new config
+python scripts/recategorize_all_transactions.py analyze
+
+# Apply safe improvements only
+python scripts/apply_safe_recategorizations.py
+
+# Manage configuration file
+python scripts/manage_categories_config.py interactive
+```
 
 ## License
 

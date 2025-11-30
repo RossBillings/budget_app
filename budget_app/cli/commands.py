@@ -58,6 +58,17 @@ def parse_args(args: List[str] = None) -> argparse.Namespace:
         default='csv',
         help='Source identifier for the transactions (default: csv)'
     )
+    import_parser.add_argument(
+        '--batch-mode',
+        action='store_true',
+        help='Use batch processing instead of individual duplicate checking (faster for large files)'
+    )
+    import_parser.add_argument(
+        '--batch-size',
+        type=int,
+        default=1000,
+        help='Batch size for batch processing mode (default: 1000)'
+    )
     
     # Report command
     report_parser = subparsers.add_parser('report', help='Generate expense reports')
@@ -224,14 +235,22 @@ def main() -> None:
     try:
         if args.command == 'import':
             print(f"Importing transactions from {args.file}...")
+            if args.batch_mode:
+                print("Using batch processing mode...")
+            else:
+                print("Using individual duplicate checking mode...")
+            
             result = import_transactions_from_csv(
                 file_path=args.file,
                 default_category=args.category,
-                source=args.source
+                source=args.source,
+                batch_size=args.batch_size,
+                check_individual_duplicates=not args.batch_mode
             )
             print(f"\nImport complete:")
             print(f"  - Inserted: {result['inserted']}")
             print(f"  - Duplicates skipped: {result['duplicates']}")
+            print(f"  - Invalid rows skipped: {result['skipped']}")
             print(f"  - Errors: {result['errors']}")
             
         elif args.command == 'report':
