@@ -1,0 +1,196 @@
+# Keyword-based transaction categories for budget_app.
+# Groups are evaluated top-to-bottom; the first matching group wins.
+# Keywords are matched case-insensitively against the transaction description.
+
+settings:
+  default_category: misc
+
+exclude_keywords:
+  - capital one mobile pymt
+
+groups:
+  - name: required
+    keywords:
+      - roundpoint
+      - mortgage
+
+  - name: tithe
+    keywords:
+      - horizon
+      - tithe.ly
+      - compassion international
+      - tithe
+      - check 9955  # recurring church tithe (Check #995518, #995519, ...)
+
+  - name: utilities
+    keywords:
+      - baltimore gas
+
+  - name: insurance
+    keywords:
+      - healthy paws
+      - ohio national
+      - mass mutual
+      - usaa property and casualty insurance
+      - northwestern
+
+  - name: dining
+    keywords:
+      - iron rooster
+      - tst*iron rooster
+      - qdoba
+      - panera
+      - chickfila
+      - starbucks
+      - 5guys
+      - sonny
+      - hoffmans
+      - popeyes
+      - taco
+      - cracker
+      - el gran pollo
+      - alfeos
+      - chipotle
+      - bubbakoos
+      - papa johns
+      - papa
+      - pizza
+      - dunkin
+      - dunkin donuts
+      - first watch
+      - ramen
+
+  - name: groceries
+    keywords:
+      - wegmans
+      - weis
+      - santonis
+      - wine post
+      - lidl
+      - aldi
+      - costco
+      - instacart
+
+  - name: automotive
+    keywords:
+      - toyota
+
+  - name: home_supplies
+    keywords:
+      - home depot
+      - lowes
+      - lawns
+      - homedepot
+      - everlast
+
+  - name: target
+    keywords:
+      - target
+      - hobby lobby
+      - target.com
+      - walmart
+      - hobbylobby
+      - amazon
+
+  - name: subscription
+    keywords:
+      - applecom
+      - amazonprime
+      - netflix
+      - disney
+      - hulu
+      - spotify
+      - youtube
+      - youtube premium
+      - youtube.com
+
+  - name: gas
+    keywords:
+      - royalfarms
+      - exxon
+      - wawa
+      - royal farms
+
+  - name: bilbrowhomes
+    keywords:
+      - bilbrowhomes
+      - bilbrow homes
+      - bobrow
+      - chase
+      - chase.com
+      - chase bank
+      - mr. cooper
+      - cooper
+      - mr cooper
+
+  - name: health
+    keywords:
+      - equip
+      - valence nutra
+      - doctors supplement store
+      - sp bodybio inc
+      - revive
+      - ryzesuperfoods
+      - blaker
+      - supplements
+      - fullscript
+      - beachbody
+      - dietbet
+      - evaxia
+
+  - name: retirement
+    keywords:
+      - lpl financial
+  
+  - name: leisure
+    keywords:
+      - vrbo
+      - airbnb
+      - expedia
+      - booking.com
+      - tripadvisor
+      - travelocity
+      - travel
+      - vacation
+      - vacation rental
+
+  - name: income
+    keywords:
+      - istari
+      - istari federal
+      - istari federal pay akpf
+      - srectrade inc
+      - tax refund
+
+
+  - name: transfer
+    keywords:
+      - usaa transfer
+      - capital one payment
+      - capital one
+      - apple savings transfer
+      - transfer
+
+  - name: clothing
+    keywords:
+      - twillory
+      - addidas
+      - kohls
+      - walmart
+  
+  - name: pet_care
+    keywords:
+      - mountainside
+      - pet insurance
+      - petco
+      - chewy
+
+  - name: misc
+    keywords: []
+
+# Amount-based rules (applied after keyword matching fails).
+# Use for unnamed transactions (e.g. checks) where the amount is the only signal.
+# 'amount' is matched against the absolute value; 'tolerance' defaults to $0.01.
+amount_rules:
+  - category: preschool
+    amount: 290.00

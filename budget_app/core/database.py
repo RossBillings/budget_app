@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, Query
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from .models import SessionLocal, Transaction, Base, engine
+from .categorizer import CategoryRules, load_category_rules
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +36,19 @@ class DuplicateEntryError(DatabaseError):
 class ValidationError(DatabaseError):
     """Raised when data validation fails."""
     pass
+
+
+# Categories omitted from summary/report aggregates (not real income or spending).
+SUMMARY_EXCLUDED_CATEGORIES = frozenset({"transfer"})
+INCOME_CATEGORY = "income"
+
+
+def _apply_flow_exclusions(query, category: Optional[str] = None):
+    """Exclude internal transfers unless the caller filters to that category."""
+    if category and category.lower() in SUMMARY_EXCLUDED_CATEGORIES:
+        return query
+    excluded = [c.lower() for c in SUMMARY_EXCLUDED_CATEGORIES]
+    return query.filter(func.lower(Transaction.category).notin_(excluded))
 
 
 @contextmanager
@@ -72,11 +86,68 @@ def get_db() -> Generator[Session, None, None]:
     finally:
         db.close()
 
+def recategorize_transactions(
+    rules: Optional[CategoryRules] = None,
+) -> Dict[str, int]:
+    """
+    Re-apply category rules to all transactions and refresh dedupe keys.
+
+    Preserves bank_category when set; otherwise keeps the current category
+    as the bank label before remapping.
+    """
+    rules = rules or load_category_rules()
+    result = {"updated": 0, "excluded": 0, "errors": 0}
+
+    with get_db() as db:
+        transactions = db.query(Transaction).all()
+        seen_keys: set[str] = set()
+        duplicates: list[Transaction] = []
+
+        for txn in transactions:
+            try:
+                if txn.bank_category is None:
+                    txn.bank_category = txn.category
+
+                if rules.should_exclude(txn.description):
+                    duplicates.append(txn)
+                    result["excluded"] += 1
+                    continue
+
+                txn.category = rules.categorize(txn.description, txn.bank_category, amount=txn.amount)
+                new_key = Transaction.generate_dedupe_key(
+                    txn.transaction_date, txn.amount, txn.description
+                )
+
+                if new_key in seen_keys:
+                    duplicates.append(txn)
+                    result["excluded"] += 1
+                    continue
+
+                seen_keys.add(new_key)
+                txn.dedupe_key = new_key
+                result["updated"] += 1
+            except Exception as e:
+                logger.error(f"Error recategorizing {txn.id}: {e}")
+                result["errors"] += 1
+
+        for txn in duplicates:
+            db.delete(txn)
+
+    logger.info(
+        "Recategorize complete. Updated: %s, Removed: %s, Errors: %s",
+        result["updated"],
+        result["excluded"],
+        result["errors"],
+    )
+    return result
+
+
 def import_transactions_from_csv(
     file_path: str,
     default_category: str = "misc",
     source: str = "csv",
     batch_size: int = 1000,
+    rules: Optional[CategoryRules] = None,
 ) -> Dict[str, int]:
     """
     Import transactions from a CSV file into the database with deduplication.
@@ -100,7 +171,8 @@ def import_transactions_from_csv(
     if not Path(file_path).is_file():
         raise FileNotFoundError(f"CSV file not found: {file_path}")
     
-    result = {"inserted": 0, "skipped": 0, "duplicates": 0, "errors": 0}
+    rules = rules or load_category_rules()
+    result = {"inserted": 0, "skipped": 0, "duplicates": 0, "errors": 0, "excluded": 0}
     
     with get_db() as db, open(file_path, "r", newline="") as f:
         reader = csv.DictReader(f)
@@ -108,8 +180,11 @@ def import_transactions_from_csv(
         
         for row_num, row in enumerate(reader, 1):
             try:
-                # Create transaction from CSV row
-                txn = Transaction.from_csv_row(row, default_category=default_category)
+                txn = Transaction.from_csv_row(
+                    row,
+                    rules=rules,
+                    default_category=default_category,
+                )
                 txn.source = source
                 batch.append(txn)
                 
@@ -120,8 +195,12 @@ def import_transactions_from_csv(
                     batch = []
                     
             except ValueError as e:
-                logger.warning(f"Skipping invalid row {row_num}: {e}")
-                result["skipped"] += 1
+                msg = str(e)
+                if "excluded transaction" in msg:
+                    result["excluded"] += 1
+                else:
+                    logger.warning(f"Skipping invalid row {row_num}: {e}")
+                    result["skipped"] += 1
             except Exception as e:
                 logger.error(f"Error processing row {row_num}: {e}")
                 result["errors"] += 1
@@ -150,11 +229,12 @@ def _process_batch(db: Session, batch: List[Transaction]) -> Dict[str, int]:
     try:
         # Get existing dedupe keys to avoid constraint violations
         dedupe_keys = {txn.dedupe_key for txn in batch}
-        existing_keys = set(
-            db.query(Transaction.dedupe_key)
+        existing_keys = {
+            key
+            for (key,) in db.query(Transaction.dedupe_key)
             .filter(Transaction.dedupe_key.in_(dedupe_keys))
             .all()
-        )
+        }
         
         # Remove duplicates within the batch itself
         seen_keys = set()
@@ -196,7 +276,7 @@ def _update_result(total: Dict[str, int], batch: Dict[str, int]) -> None:
         total[key] += batch.get(key, 0)
 
 def get_aggregated_expenses(
-    category: str,
+    category: Optional[str] = None,
     start_date: Optional[Union[date, str]] = None,
     end_date: Optional[Union[date, str]] = None
 ) -> List[Dict[str, Any]]:
@@ -204,7 +284,7 @@ def get_aggregated_expenses(
     Get aggregated expenses by month for a specific category.
     
     Args:
-        category: Category to filter by (case-insensitive)
+        category: Optional category filter (case-insensitive). Omit for all categories.
         start_date: Optional start date filter (inclusive). Can be date object or 'YYYY-MM-DD' string.
         end_date: Optional end date filter (inclusive). Can be date object or 'YYYY-MM-DD' string.
         
@@ -229,10 +309,14 @@ def get_aggregated_expenses(
         query = db.query(
             func.strftime('%Y-%m', Transaction.transaction_date).label('month'),
             func.sum(Transaction.amount).label('total')
-        ).filter(
-            func.lower(Transaction.category) == category.lower()
         )
-        
+        if category:
+            query = query.filter(
+                func.lower(Transaction.category) == category.lower()
+            )
+        else:
+            query = _apply_flow_exclusions(query)
+
         # Apply date filters if provided
         if start_date:
             query = query.filter(Transaction.transaction_date >= start_date)
@@ -249,7 +333,7 @@ def get_aggregated_expenses(
         ]
 
 def get_transactions(
-    category: str,
+    category: Optional[str] = None,
     keyword: Optional[str] = None,
     start_date: Optional[Union[date, str]] = None,
     end_date: Optional[Union[date, str]] = None,
@@ -262,7 +346,7 @@ def get_transactions(
     Get filtered, sorted, and paginated transactions.
     
     Args:
-        category: Category to filter by (case-insensitive)
+        category: Optional category filter (case-insensitive). Omit for all categories.
         keyword: Optional keyword to search in description (case-insensitive)
         start_date: Optional start date filter (inclusive). Can be date object or 'YYYY-MM-DD' string.
         end_date: Optional end date filter (inclusive). Can be date object or 'YYYY-MM-DD' string.
@@ -294,10 +378,11 @@ def get_transactions(
     
     db = SessionLocal()
     try:
-        # Build base query
-        query = db.query(Transaction).filter(
-            func.lower(Transaction.category) == category.lower()
-        )
+        query = db.query(Transaction)
+        if category:
+            query = query.filter(
+                func.lower(Transaction.category) == category.lower()
+            )
         
         # Apply filters
         if keyword:
@@ -346,6 +431,59 @@ def get_transactions(
         db.close()
 
 
+def get_category_monthly_totals(
+    category: Optional[str] = None,
+    start_date: Optional[Union[date, str]] = None,
+    end_date: Optional[Union[date, str]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Get expense totals grouped by month and category.
+
+    Args:
+        category: Optional category filter (case-insensitive).
+        start_date: Optional start date filter (inclusive).
+        end_date: Optional end date filter (inclusive).
+
+    Returns:
+        List of dicts with 'month', 'category', and 'total' keys,
+        sorted by month then category.
+    """
+    if isinstance(start_date, str):
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+    if isinstance(end_date, str):
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    with get_db() as db:
+        query = db.query(
+            func.strftime('%Y-%m', Transaction.transaction_date).label('month'),
+            Transaction.category,
+            func.sum(Transaction.amount).label('total'),
+        )
+        if category:
+            query = query.filter(
+                func.lower(Transaction.category) == category.lower()
+            )
+        else:
+            query = _apply_flow_exclusions(query)
+        if start_date:
+            query = query.filter(Transaction.transaction_date >= start_date)
+        if end_date:
+            query = query.filter(Transaction.transaction_date <= end_date)
+
+        results = query.group_by('month', Transaction.category).order_by(
+            'month', Transaction.category
+        ).all()
+
+        return [
+            {
+                "month": month,
+                "category": cat,
+                "total": float(total) if total else 0.0,
+            }
+            for month, cat, total in results
+        ]
+
+
 def get_categories() -> List[Dict[str, Any]]:
     """
     Get list of all categories with their total amounts.
@@ -354,10 +492,12 @@ def get_categories() -> List[Dict[str, Any]]:
         List of dicts with 'category' and 'total' keys, sorted by total descending
     """
     with get_db() as db:
-        results = db.query(
+        query = db.query(
             Transaction.category,
             func.sum(Transaction.amount).label('total')
-        ).group_by(
+        )
+        query = _apply_flow_exclusions(query)
+        results = query.group_by(
             Transaction.category
         ).order_by(
             func.sum(Transaction.amount).desc()

@@ -10,6 +10,7 @@ setup(
         'matplotlib>=3.7.0',
         'prettytable>=3.6.0',
         'python-dateutil>=2.8.2',
+        'PyYAML>=6.0',
     ],
     entry_points={
         'console_scripts': [
